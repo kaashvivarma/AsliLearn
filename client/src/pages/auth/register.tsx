@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Sparkles, CheckCircle } from 'lucide-react';
 import { Link } from 'wouter';
+import { API_BASE_URL } from '@/lib/api-config';
 
 const Register = () => {
   const [, setLocation] = useLocation();
@@ -43,7 +44,7 @@ const Register = () => {
     }
 
     try {
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/register', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -32,9 +32,9 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'https://asli-stud-back-production.up.railway.app',
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        secure: true,
+        secure: false,
       },
     },
   },

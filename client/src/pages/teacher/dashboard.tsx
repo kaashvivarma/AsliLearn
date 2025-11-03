@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/lib/api-config';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,6 @@ interface TeacherStats {
   totalStudents: number;
   totalClasses: number;
   totalVideos: number;
-  totalAssessments: number;
   averagePerformance: number;
   recentActivity: any[];
 }
@@ -86,7 +86,6 @@ const TeacherDashboard = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [videos, setVideos] = useState<Video[]>([]);
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [assignedClasses, setAssignedClasses] = useState<any[]>([]);
   const [teacherSubjects, setTeacherSubjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -96,11 +95,9 @@ const TeacherDashboard = () => {
 
   // Modal states
   const [isAddVideoModalOpen, setIsAddVideoModalOpen] = useState(false);
-  const [isAddAssessmentModalOpen, setIsAddAssessmentModalOpen] = useState(false);
   const [isVideoViewerOpen, setIsVideoViewerOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [isCreatingVideo, setIsCreatingVideo] = useState(false);
-  const [isCreatingAssessment, setIsCreatingAssessment] = useState(false);
 
   // Form states
   const [videoForm, setVideoForm] = useState({
@@ -112,15 +109,6 @@ const TeacherDashboard = () => {
     difficulty: 'beginner' // Changed from 'medium' to 'beginner'
   });
 
-  const [assessmentForm, setAssessmentForm] = useState({
-    title: '',
-    description: '',
-    subject: '',
-    questions: '',
-    timeLimit: '',
-    difficulty: 'medium',
-    link: '' // Add Google Drive link field
-  });
 
   // Lesson Plan form state
   const [lessonPlanForm, setLessonPlanForm] = useState({
@@ -154,7 +142,7 @@ const TeacherDashboard = () => {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/videos/${video.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/videos/${video.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -174,45 +162,6 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleDeleteAssessment = async (assessment: any) => {
-    if (!confirm('Delete this assessment?')) return;
-
-    const id = assessment?._id || assessment?.id;
-    if (!id) {
-      alert('Invalid assessment id');
-      return;
-    }
-
-    const token = localStorage.getItem('authToken');
-
-    const tryDelete = async (url: string) => {
-      return fetch(url, {
-        method: 'DELETE',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
-    };
-
-    const urls = [
-      `https://asli-stud-back-production.up.railway.app/api/teacher/assessments/${id}`,
-      `https://asli-stud-back-production.up.railway.app/api/admin/assessments/${id}`,
-      `https://asli-stud-back-production.up.railway.app/api/assessments/${id}`
-    ];
-
-    for (const url of urls) {
-      try {
-        const res = await tryDelete(url);
-        if (res.ok) {
-          setAssessments(prev => prev.filter(a => (a._id || a.id) !== id));
-          alert('Assessment deleted');
-          return;
-        }
-      } catch (e) {
-        // try next
-      }
-    }
-
-    alert('Delete failed. Ensure you are logged in and creator of the assessment.');
-  };
 
   const handleCreateVideo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,7 +198,7 @@ const TeacherDashboard = () => {
       };
 
       // Use teacher endpoint with auth so createdBy/adminId are set to the teacher
-      let response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/videos', {
+      let response = await fetch(`${API_BASE_URL}/api/teacher/videos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -264,7 +213,7 @@ const TeacherDashboard = () => {
       // If Railway API failed, try test endpoint
       if (!response.ok) {
         try {
-          response = await fetch('https://asli-stud-back-production.up.railway.app/api/test-video-simple', {
+          response = await fetch(`${API_BASE_URL}/api/test-video-simple`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -318,7 +267,7 @@ const TeacherDashboard = () => {
     setGeneratedLessonPlan('');
 
     try {
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/lesson-plan/generate', {
+      const response = await fetch(`${API_BASE_URL}/api/lesson-plan/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -342,109 +291,46 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleCreateAssessment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsCreatingAssessment(true);
 
+  // Fetch student performance data
+  const fetchStudentPerformance = async () => {
     try {
       const token = localStorage.getItem('authToken');
-
-      // Ensure we send a subject ID, not a display name
-      const subjectFromForm = (assessmentForm.subject || '').toString();
-      const subjectCandidate = teacherSubjects?.find?.((s: any) => (s._id || s.id) === subjectFromForm || s.name === subjectFromForm);
-      const subjectIdToSend = (subjectCandidate && (subjectCandidate._id || subjectCandidate.id)) || subjectFromForm;
-
-      const payload = {
-        title: assessmentForm.title?.trim(),
-        description: assessmentForm.description || '',
-        // Subject forms for compatibility
-        subject: subjectIdToSend,
-        subjectIds: [subjectIdToSend],
-        // Questions must be an array in some deployed versions
-        questions: [],
-        // Provide both totalPoints and totalMarks for compatibility
-        totalPoints: Number(assessmentForm.questions) || 10,
-        totalMarks: Number(assessmentForm.questions) || 10,
-        // Provide both timeLimit and duration for compatibility
-        timeLimit: Number(assessmentForm.timeLimit) || 30,
-        duration: Number(assessmentForm.timeLimit) || 30,
-        difficulty: (assessmentForm.difficulty || 'beginner').toLowerCase() === 'medium' ? 'intermediate' : (assessmentForm.difficulty || 'beginner'),
-        link: assessmentForm.link || '',
-        driveLink: assessmentForm.link || ''
-      };
-
-      // Create on Railway with JWT auth
-      if (!token) {
-        alert('You are not logged in. Please login again.');
-        return;
-      }
-
-      const response = await fetch('/api/create-assessment', {
-        method: 'POST',
+      const response = await fetch(`${API_BASE_URL}/api/teacher/students/performance`, {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: assessmentForm.title?.trim(),
-          description: assessmentForm.description || '',
-          subject: subjectIdToSend,
-          difficulty: (assessmentForm.difficulty || 'beginner').toLowerCase() === 'medium' ? 'intermediate' : (assessmentForm.difficulty || 'beginner'),
-          duration: Number(assessmentForm.timeLimit) || 30,
-          totalMarks: Number(assessmentForm.questions) || 10,
-          driveLink: assessmentForm.link || '',
-          isDriveQuiz: !!assessmentForm.link
-        })
+        }
       });
 
-      if (!response.ok) {
-        // Try to parse JSON; if it fails, show raw text
-        let serverMessage = 'Server error';
-        try {
-          const errJson = await response.json();
-          serverMessage = errJson.message || errJson.error || JSON.stringify(errJson);
-          console.error('Assessment creation error JSON:', errJson);
-        } catch (e) {
-          const errText = await response.text().catch(() => '');
-          if (errText) {
-            serverMessage = errText;
-            console.error('Assessment creation error TEXT:', errText);
-          }
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          // Update students with performance data
+          setStudents(data.data.map((student: any) => ({
+            id: student._id || student.id,
+            name: student.fullName || student.name,
+            email: student.email,
+            classNumber: student.classNumber,
+            performance: student.performance || {
+              recentExamTitle: null,
+              recentMarks: null,
+              recentPercentage: null,
+              totalExams: 0,
+              averageMarks: 0
+            }
+          })));
         }
-        alert(`Assessment creation failed: ${serverMessage}`);
-        return;
       }
-
-      const created: any = await response.json();
-
-      const normalized = {
-        id: created._id || created.id || `assess-${Date.now()}`,
-        title: created.title || assessmentForm.title,
-        subjectIds: created.subjectIds || [subjectIdToSend],
-        driveLink: created.driveLink || assessmentForm.link,
-        totalPoints: created.totalPoints || Number(assessmentForm.questions),
-        attempts: created.attempts || [],
-        createdBy: created.createdBy,
-        duration: created.duration || Number(assessmentForm.timeLimit),
-        difficulty: created.difficulty || assessmentForm.difficulty
-      };
-
-      setAssessments(prev => [normalized, ...prev]);
-      setIsAddAssessmentModalOpen(false);
-      setAssessmentForm({ title: '', description: '', subject: '', questions: '', timeLimit: '', difficulty: 'medium', link: '' });
-      alert('Assessment created successfully!');
-      await fetchTeacherData();
     } catch (error) {
-      console.error('Failed to create assessment:', error);
-      alert('Failed to create assessment. Please try again.');
-    } finally {
-      setIsCreatingAssessment(false);
+      console.error('Failed to fetch student performance:', error);
     }
   };
 
   const fetchTeacherData = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/dashboard', {
+      const response = await fetch(`${API_BASE_URL}/api/teacher/dashboard`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -461,47 +347,11 @@ const TeacherDashboard = () => {
             recentActivity: data.data.recentActivity || []
           });
           setStudents(data.data.students || []);
+          
+          // Fetch performance data for students
+          fetchStudentPerformance();
           setVideos(data.data.videos || []);
-          const dashboardAssessments = data.data.assessments || [];
-          let mergedAssessments = dashboardAssessments;
 
-          // Also load published assessments from Railway public endpoint and merge
-          try {
-            const pubRes = await fetch('https://asli-stud-back-production.up.railway.app/api/assessments');
-            if (pubRes.ok) {
-              const pubList = await pubRes.json();
-              if (Array.isArray(pubList)) {
-                const byId = new Map<string, any>();
-                [...dashboardAssessments, ...pubList].forEach((a: any) => {
-                  const id = a?._id || a?.id;
-                  if (id) byId.set(id, a);
-                });
-                mergedAssessments = Array.from(byId.values());
-              }
-            }
-          } catch (e) {
-            console.warn('Public assessments fetch failed, skipping merge');
-          }
-
-          // Fallback: try local dev endpoint if available
-          try {
-            const localRes = await fetch('/api/assessments');
-            if (localRes.ok) {
-              const localList = await localRes.json();
-              if (Array.isArray(localList)) {
-                const byId = new Map<string, any>();
-                [...mergedAssessments, ...localList].forEach((a: any) => {
-                  const id = a?._id || a?.id;
-                  if (id) byId.set(id, a);
-                });
-                mergedAssessments = Array.from(byId.values());
-              }
-            }
-          } catch (e) {
-            console.warn('Local assessments fetch failed, skipping merge');
-          }
-
-          setAssessments(mergedAssessments);
           setTeacherEmail(data.data.teacherEmail || '');
           setAssignedClasses(data.data.assignedClasses || []);
           setTeacherSubjects(data.data.teacherSubjects || []);
@@ -522,7 +372,6 @@ const TeacherDashboard = () => {
         });
         setStudents([]);
         setVideos([]);
-        setAssessments([]);
         setAssignedClasses([]);
         setTeacherSubjects([]);
       }
@@ -539,7 +388,6 @@ const TeacherDashboard = () => {
       });
       setStudents([]);
       setVideos([]);
-      setAssessments([]);
       setAssignedClasses([]);
       setTeacherSubjects([]);
     } finally {
@@ -797,26 +645,6 @@ const TeacherDashboard = () => {
                   </div>
                 </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="bg-white/80 backdrop-blur-xl rounded-responsive p-responsive shadow-responsive border border-white/20"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-600 text-responsive-xs font-medium">Assessments</p>
-                      <p className="text-responsive-xl font-bold text-gray-900">{stats.totalAssessments}</p>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-                      <Target className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center text-green-600 text-sm">
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    <span>+22% this month</span>
-                  </div>
-                </motion.div>
               </div>
 
               {/* Recent Activity */}
@@ -1081,13 +909,6 @@ const TeacherDashboard = () => {
                     <Plus className="w-4 h-4 mr-2" />
                     Add Video
                   </Button>
-                  <Button 
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
-                    onClick={() => setIsAddAssessmentModalOpen(true)}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Assessment
-                  </Button>
                 </div>
               </div>
 
@@ -1122,48 +943,6 @@ const TeacherDashboard = () => {
                 </div>
               </div>
 
-              {/* Assessments */}
-              <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">My Assessments</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {assessments.map((assessment) => (
-                    <div key={assessment.id} className="bg-gray-50 rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-gray-900">{assessment.title}</h4>
-                        <div className="flex space-x-2">
-                          <Button size="sm" variant="outline">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleDeleteAssessment(assessment)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">{assessment.subjectIds?.[0] || assessment.subject}</p>
-                      <p className="text-xs text-gray-500 mb-2">Created by: {assessment.createdBy?.name || 'Unknown'}</p>
-                      {assessment.driveLink && (
-                        <div className="mb-2">
-                          <a 
-                            href={assessment.driveLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-sm underline"
-                          >
-                            📎 Open Link
-                          </a>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between text-sm text-gray-500">
-                        <span>{assessment.totalPoints || assessment.questions?.length || 0} questions</span>
-                        <span>{assessment.attempts?.length || 0} attempts</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
@@ -1271,6 +1050,8 @@ const TeacherDashboard = () => {
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 font-medium text-gray-900">Student</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-900">Class</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Recent Performance</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Average</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1279,19 +1060,55 @@ const TeacherDashboard = () => {
                           student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           student.email.toLowerCase().includes(searchTerm.toLowerCase())
                         )
-                        .map((student) => (
-                        <tr key={student.id} className="border-b border-gray-100">
-                          <td className="py-3 px-4">
-                            <div>
-                              <p className="font-medium text-gray-900">{student.name}</p>
-                              <p className="text-sm text-gray-600">{student.email}</p>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge className="bg-blue-100 text-blue-800">{student.classNumber}</Badge>
-                          </td>
-                        </tr>
-                      ))}
+                        .map((student) => {
+                          const perf = (student as any).performance || {};
+                          return (
+                            <tr key={student.id} className="border-b border-gray-100">
+                              <td className="py-3 px-4">
+                                <div>
+                                  <p className="font-medium text-gray-900">{student.name}</p>
+                                  <p className="text-sm text-gray-600">{student.email}</p>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <Badge className="bg-blue-100 text-blue-800">{student.classNumber}</Badge>
+                              </td>
+                              <td className="py-3 px-4">
+                                {perf.recentMarks !== null && perf.recentMarks !== undefined ? (
+                                  <div>
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {perf.recentMarks}/{perf.recentExamTitle ? '100' : 'N/A'}
+                                      </span>
+                                      <Badge className={perf.recentPercentage >= 70 ? 'bg-green-100 text-green-800' : 
+                                                       perf.recentPercentage >= 50 ? 'bg-yellow-100 text-yellow-800' : 
+                                                       'bg-red-100 text-red-800'}>
+                                        {perf.recentPercentage?.toFixed(1)}%
+                                      </Badge>
+                                    </div>
+                                    {perf.recentExamTitle && (
+                                      <p className="text-xs text-gray-500 mt-1">{perf.recentExamTitle}</p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-gray-400">No exams taken</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4">
+                                {perf.totalExams > 0 ? (
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {perf.averageMarks?.toFixed(1) || '0'}
+                                    </span>
+                                    <p className="text-xs text-gray-500">{perf.totalExams} exam{perf.totalExams !== 1 ? 's' : ''}</p>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-gray-400">-</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
@@ -1412,125 +1229,6 @@ const TeacherDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Add Assessment Modal */}
-      <Dialog open={isAddAssessmentModalOpen} onOpenChange={setIsAddAssessmentModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-gray-800">Add New Assessment</DialogTitle>
-            <DialogDescription>
-              Create a new assessment for your students.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateAssessment} className="space-y-4">
-            <div>
-              <Label htmlFor="assessment-title" className="text-gray-700 font-medium">Title *</Label>
-              <Input
-                id="assessment-title"
-                value={assessmentForm.title}
-                onChange={(e) => setAssessmentForm(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Enter assessment title"
-                required
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="assessment-description" className="text-gray-700 font-medium">Description</Label>
-              <Textarea
-                id="assessment-description"
-                value={assessmentForm.description}
-                onChange={(e) => setAssessmentForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Enter assessment description"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="assessment-subject" className="text-gray-700 font-medium">Subject *</Label>
-              {teacherSubjects.length === 0 && (
-                <div className="mt-1 mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    <strong>No subjects assigned:</strong> You need to be assigned subjects by an admin before creating assessments. 
-                    Please contact your administrator to assign subjects to your account.
-                  </p>
-                </div>
-              )}
-              <Select value={assessmentForm.subject} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, subject: value }))}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teacherSubjects.length > 0 ? (
-                    teacherSubjects.map(subject => (
-                      <SelectItem key={subject._id || subject.id} value={subject.name}>
-                        {subject.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-subjects" disabled>
-                      No subjects assigned - Contact admin to assign subjects
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="assessment-questions" className="text-gray-700 font-medium">Number of Questions *</Label>
-              <Input
-                id="assessment-questions"
-                type="number"
-                value={assessmentForm.questions}
-                onChange={(e) => setAssessmentForm(prev => ({ ...prev, questions: e.target.value }))}
-                placeholder="10"
-                required
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="assessment-time" className="text-gray-700 font-medium">Time Limit (minutes)</Label>
-              <Input
-                id="assessment-time"
-                type="number"
-                value={assessmentForm.timeLimit}
-                onChange={(e) => setAssessmentForm(prev => ({ ...prev, timeLimit: e.target.value }))}
-                placeholder="30"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="assessment-difficulty" className="text-gray-700 font-medium">Difficulty</Label>
-              <Select value={assessmentForm.difficulty} onValueChange={(value) => setAssessmentForm(prev => ({ ...prev, difficulty: value }))}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="assessment-link" className="text-gray-700 font-medium">Google Drive Link</Label>
-              <Input
-                id="assessment-link"
-                type="url"
-                value={assessmentForm.link}
-                onChange={(e) => setAssessmentForm(prev => ({ ...prev, link: e.target.value }))}
-                placeholder="https://drive.google.com/file/d/..."
-                className="mt-1"
-              />
-              <p className="text-xs text-gray-500 mt-1">Optional: Link to Google Drive document or any other resource</p>
-            </div>
-            <div className="flex justify-end space-x-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsAddAssessmentModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isCreatingAssessment || teacherSubjects.length === 0} className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600">
-                {isCreatingAssessment ? 'Creating...' : teacherSubjects.length === 0 ? 'No Subjects Assigned' : 'Create Assessment'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* Video Viewer Modal */}
       <Dialog open={isVideoViewerOpen} onOpenChange={setIsVideoViewerOpen}>

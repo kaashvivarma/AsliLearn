@@ -19,6 +19,7 @@ import {
   HelpCircle
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { API_BASE_URL } from "@/lib/api-config";
 
 // Mock user ID - in a real app, this would come from authentication
 const MOCK_USER_ID = "user-1";
@@ -44,7 +45,7 @@ export default function AITutor() {
           return;
         }
 
-        const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

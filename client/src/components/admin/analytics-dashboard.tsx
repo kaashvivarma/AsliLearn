@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   TrendingUp, 
   Users, 
@@ -78,7 +79,7 @@ const AnalyticsDashboard = () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/analytics', {
+      const response = await fetch('${API_BASE_URL}/api/admin/analytics', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

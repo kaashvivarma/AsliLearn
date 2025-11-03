@@ -24,6 +24,7 @@ import {
 import Navigation from '@/components/navigation';
 import VideoModal from '@/components/video-modal';
 import { Link } from 'wouter';
+import { API_BASE_URL } from '@/lib/api-config';
 
 interface Subject {
   _id: string;
@@ -68,7 +69,6 @@ interface Quiz {
 export default function SubjectContent() {
   const [, params] = useRoute('/subject/:id');
   const [subject, setSubject] = useState<Subject | null>(null);
-  const [assessments, setAssessments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
@@ -81,20 +81,14 @@ export default function SubjectContent() {
 
   const fetchSubjectContent = async (subjectId: string) => {
     try {
-      const [subjectResponse, videosResponse, assessmentsResponse] = await Promise.all([
-        fetch(`https://asli-stud-back-production.up.railway.app/api/subjects/${subjectId}`, {
+      const [subjectResponse, videosResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/subjects/${subjectId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
             'Content-Type': 'application/json',
           }
         }),
-        fetch(`https://asli-stud-back-production.up.railway.app/api/student/videos?subject=${encodeURIComponent(subjectId)}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            'Content-Type': 'application/json',
-          }
-        }),
-        fetch(`https://asli-stud-back-production.up.railway.app/api/student/assessments?subject=${encodeURIComponent(subjectId)}`, {
+        fetch(`${API_BASE_URL}/api/student/videos?subject=${encodeURIComponent(subjectId)}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
             'Content-Type': 'application/json',
@@ -160,24 +154,21 @@ export default function SubjectContent() {
         if (vidCt && vidCt.includes('application/json')) {
           const videosData = await videosResponse.json();
           const videosList = (videosData.data || videosData.videos || videosData) as any[];
+          console.log('📹 Videos fetched for subject:', {
+            subjectId,
+            videosCount: videosList.length,
+            videos: videosList.map(v => ({ title: v.title, subjectId: v.subjectId }))
+          });
           setSubject(prev => prev ? { ...prev, videos: videosList } as any : prev);
-        }
-      }
-
-      if (assessmentsResponse.ok) {
-        const contentType = assessmentsResponse.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const assessmentsData = await assessmentsResponse.json();
-          const list = (assessmentsData.data || assessmentsData.assessments || assessmentsData) as any[];
-          setAssessments(list);
         } else {
-          console.warn('Assessments response is not JSON, using empty array');
-          setAssessments([]);
+          console.warn('⚠️ Videos response is not JSON');
+          setSubject(prev => prev ? { ...prev, videos: [] } as any : prev);
         }
       } else {
-        console.warn('Assessments API failed, using empty array');
-        setAssessments([]);
+        console.warn('⚠️ Videos API failed:', videosResponse.status, videosResponse.statusText);
+        setSubject(prev => prev ? { ...prev, videos: [] } as any : prev);
       }
+
     } catch (error) {
       console.error('Failed to fetch subject content:', error);
       // Set fallback data on error
@@ -197,7 +188,6 @@ export default function SubjectContent() {
         rating: 4.5,
         progress: 0
       });
-      setAssessments([]);
     } finally {
       setLoading(false);
     }
@@ -346,14 +336,10 @@ export default function SubjectContent() {
 
         {/* Content Tabs */}
         <Tabs defaultValue="videos" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-1">
             <TabsTrigger value="videos" className="flex items-center space-x-2">
               <Video className="w-4 h-4" />
               <span>Videos ({subject.videos?.length || 0})</span>
-            </TabsTrigger>
-            <TabsTrigger value="assessments" className="flex items-center space-x-2">
-              <FileText className="w-4 h-4" />
-              <span>Assessments ({assessments.length})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -405,67 +391,6 @@ export default function SubjectContent() {
             )}
           </TabsContent>
 
-          <TabsContent value="assessments" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {assessments.map((assessment) => (
-                <Card key={assessment._id} className="hover:shadow-lg transition-shadow duration-200">
-                  <CardHeader>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <Badge className={getDifficultyColor(assessment.difficulty)}>
-                        {assessment.difficulty}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-lg">{assessment.title}</CardTitle>
-                    <p className="text-sm text-gray-600 mt-2">{assessment.description}</p>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-4 h-4" />
-                        <span>{assessment.duration} min</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <CheckCircle className="w-4 h-4" />
-                        <span>{assessment.totalPoints} points</span>
-                      </div>
-                    </div>
-                    
-                    {assessment.isDriveQuiz && (
-                      <div className="flex items-center space-x-1 text-sm text-blue-600">
-                        <FileText className="w-4 h-4" />
-                        <span>Google Drive Quiz</span>
-                      </div>
-                    )}
-
-                    <Button 
-                      className="w-full gradient-primary text-white"
-                      onClick={() => {
-                        if (assessment.isDriveQuiz && assessment.driveLink) {
-                          window.open(assessment.driveLink, '_blank');
-                        } else {
-                          alert('Assessment functionality coming soon!');
-                        }
-                      }}
-                    >
-                      <Target className="w-4 h-4 mr-2" />
-                      {assessment.isDriveQuiz ? 'Open in Drive' : 'Take Assessment'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {assessments.length === 0 && (
-              <div className="text-center py-12">
-                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No assessments available</h3>
-                <p className="text-gray-600">Assessments will appear here once they are added to this learning path.</p>
-              </div>
-            )}
-          </TabsContent>
         </Tabs>
       </div>
 

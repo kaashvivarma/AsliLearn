@@ -370,8 +370,8 @@ export default function ExamResults({ result, examTitle, onRetake, onViewAnalysi
             <Eye className="w-4 h-4 mr-2" />
             View Detailed Analysis
           </Button>
-          <Button onClick={onRetake} className="bg-primary hover:bg-primary/90">
-            Retake Exam
+          <Button onClick={() => alert('Exams can only be attempted once. Check the "Attempted Exams" tab to view your results.')} variant="outline" className="border-gray-300">
+            Exam Completed
           </Button>
         </div>
       </div>

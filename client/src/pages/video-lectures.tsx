@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { VideoLecture, Subject } from "@shared/schema";
+import { API_BASE_URL } from "@/lib/api-config";
 
 // Add shimmer animation styles
 const shimmerStyles = `
@@ -113,7 +114,7 @@ export default function VideoLectures() {
     queryKey: ["/api/student/videos"],
     queryFn: async () => {
       const token = localStorage.getItem('authToken');
-      const response = await fetch("https://asli-stud-back-production.up.railway.app/api/student/videos", {
+      const response = await fetch(`${API_BASE_URL}/api/student/videos`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

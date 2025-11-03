@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   GraduationCap, 
   Users, 
@@ -74,7 +75,7 @@ const ClassDashboard = () => {
   const fetchStudents = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -145,7 +146,7 @@ const ClassDashboard = () => {
   const fetchClasses = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/classes', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/classes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

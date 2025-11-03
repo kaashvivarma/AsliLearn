@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/lib/api-config";
 import { 
   BellIcon, 
   LogOutIcon, 
@@ -68,7 +69,7 @@ export default function SuperAdminDashboard() {
   }, []);
 
   // API Base URL
-  const API_BASE = 'https://asli-stud-back-production.up.railway.app';
+  const API_BASE = API_BASE_URL;
 
   // Fetch stats from API
   const { data: stats, isLoading: statsLoading } = useQuery({

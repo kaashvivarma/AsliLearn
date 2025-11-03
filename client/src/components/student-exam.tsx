@@ -84,7 +84,7 @@ export default function StudentExam({ examId, onComplete, onExit }: StudentExamP
   const { data: exam, isLoading } = useQuery({
     queryKey: ['/api/student/exams', examId],
     queryFn: async () => {
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/student/exams/${examId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/student/exams/${examId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'
@@ -234,7 +234,7 @@ export default function StudentExam({ examId, onComplete, onExit }: StudentExamP
 
     // Save result to backend
     try {
-      await fetch('https://asli-stud-back-production.up.railway.app/api/student/exam-results', {
+      await fetch('${API_BASE_URL}/api/student/exam-results', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

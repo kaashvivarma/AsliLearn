@@ -8,11 +8,13 @@ import {
   CrownIcon,
   UserPlusIcon,
   GraduationCapIcon,
-  BrainCircuitIcon
+  BrainCircuitIcon,
+  UploadIcon,
+  FileTextIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type SuperAdminView = 'dashboard' | 'admins' | 'analytics' | 'ai-analytics' | 'detailed-analytics' | 'subscriptions' | 'settings';
+export type SuperAdminView = 'dashboard' | 'admins' | 'analytics' | 'ai-analytics' | 'detailed-analytics' | 'subscriptions' | 'settings' | 'board-comparison' | 'content' | 'board' | 'subjects' | 'exams';
 
 interface SuperAdminSidebarProps {
   currentView: SuperAdminView;
@@ -24,7 +26,11 @@ export function SuperAdminSidebar({ currentView, onViewChange, user }: SuperAdmi
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3Icon },
     { id: 'admins', label: 'Admin Management', icon: CrownIcon },
+    { id: 'subjects', label: 'Subject Management', icon: BookIcon },
+    { id: 'content', label: 'Content Management', icon: UploadIcon },
+    { id: 'exams', label: 'Exam Management', icon: FileTextIcon },
     { id: 'analytics', label: 'Analytics', icon: BarChartIcon },
+    { id: 'board-comparison', label: 'Board Comparison', icon: BarChartIcon },
     { id: 'ai-analytics', label: 'AI Analytics', icon: BrainCircuitIcon },
     { id: 'detailed-analytics', label: 'Detailed Analytics', icon: BarChartIcon },
     { id: 'subscriptions', label: 'Subscriptions', icon: CreditCardIcon },

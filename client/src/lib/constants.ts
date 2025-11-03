@@ -1,5 +1,5 @@
-// API Configuration
-export const API_BASE_URL = 'https://asli-stud-back-production.up.railway.app';
+// API Configuration - Import from api-config for centralized management
+export { API_BASE_URL } from './api-config';
 
 // Helper function to make API calls
 export const apiCall = async (endpoint: string, options: RequestInit = {}) => {

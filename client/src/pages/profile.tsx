@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { EDUCATION_STREAMS, getAgeGroup, getStreamsByAge } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/lib/api-config";
 
 // Mock user ID - in a real app, this would come from authentication
 const MOCK_USER_ID = "user-1";
@@ -42,8 +43,43 @@ export default function Profile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Removed problematic dashboard query that was causing 404 errors
-  // Dashboard data is not needed for profile page
+  // Fetch user data
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData.user);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   // Fetch user's test attempts for achievements
   const { data: attempts = [] } = useQuery({
@@ -74,9 +110,8 @@ export default function Profile() {
     },
   });
 
-  const user = (dashboardData as any)?.user;
-  const stats = (dashboardData as any)?.stats || { streak: 0, questionsAnswered: 0, accuracyRate: 0, rank: 0 };
-  const streak = (dashboardData as any)?.streak;
+  // Use mock stats for now (could be fetched from backend later)
+  const stats = { streak: 0, questionsAnswered: 0, accuracyRate: 0, rank: 0 };
 
   const handleEdit = () => {
     setIsEditing(true);

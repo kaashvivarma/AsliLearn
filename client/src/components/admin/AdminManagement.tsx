@@ -5,13 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UsersIcon, UserPlusIcon, EditIcon, TrashIcon, CrownIcon, GraduationCapIcon, BookOpenIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/lib/api-config";
 
 interface Admin {
   id: string;
   name: string;
   email: string;
+  board?: string;
+  schoolName?: string;
   permissions: string[];
   status: string;
   joinDate: string;
@@ -54,10 +58,22 @@ export default function AdminManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingAdmin, setIsAddingAdmin] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
+  const [isUpdatingAdmin, setIsUpdatingAdmin] = useState(false);
   const [newAdmin, setNewAdmin] = useState({
     name: '',
     email: '',
-    password: ''
+    password: '',
+    board: '',
+    schoolName: ''
+  });
+  const [editAdmin, setEditAdmin] = useState({
+    name: '',
+    email: '',
+    board: '',
+    schoolName: '',
+    isActive: true
   });
   const { toast } = useToast();
 
@@ -66,7 +82,7 @@ export default function AdminManagement() {
     const fetchAdmins = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch('https://asli-stud-back-production.up.railway.app/api/super-admin/admins', {
+        const response = await fetch(`${API_BASE_URL}/api/super-admin/admins`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -104,10 +120,10 @@ export default function AdminManagement() {
   const handleAddAdmin = async () => {
     if (isAddingAdmin) return; // Prevent multiple submissions
     
-    if (!newAdmin.name || !newAdmin.email || !newAdmin.password) {
+    if (!newAdmin.name || !newAdmin.email || !newAdmin.password || !newAdmin.board || !newAdmin.schoolName) {
       toast({
         title: "Error",
-        description: "Please fill in all fields",
+        description: "Please fill in all fields including board and school name",
         variant: "destructive",
       });
       return;
@@ -129,9 +145,11 @@ export default function AdminManagement() {
 
     setIsAddingAdmin(true);
     try {
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/super-admin/admins', {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/super-admin/admins`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(newAdmin),
@@ -140,7 +158,7 @@ export default function AdminManagement() {
       if (response.ok) {
         const result = await response.json();
         setAdmins([...(admins || []), result.data]);
-        setNewAdmin({ name: '', email: '', password: '' });
+        setNewAdmin({ name: '', email: '', password: '', board: '', schoolName: '' });
         setIsAddDialogOpen(false);
         toast({
           title: "Success",
@@ -174,6 +192,114 @@ export default function AdminManagement() {
     }
   };
 
+  const handleEditClick = (admin: Admin) => {
+    setEditingAdmin(admin);
+    setEditAdmin({
+      name: admin.name || '',
+      email: admin.email || '',
+      board: admin.board || '',
+      schoolName: admin.schoolName || '',
+      isActive: admin.status === 'active' || admin.status === 'Active'
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateAdmin = async () => {
+    if (!editingAdmin?.id) {
+      toast({
+        title: "Error",
+        description: "Invalid admin ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!editAdmin.name || !editAdmin.email || !editAdmin.board || !editAdmin.schoolName) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUpdatingAdmin(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/super-admin/admins/${editingAdmin.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editAdmin.name,
+          email: editAdmin.email,
+          board: editAdmin.board,
+          schoolName: editAdmin.schoolName,
+          isActive: editAdmin.isActive
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Update admin success:', result);
+        
+        // Refresh the admins list
+        const fetchResponse = await fetch(`${API_BASE_URL}/api/super-admin/admins`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (fetchResponse.ok) {
+          const fetchData = await fetchResponse.json();
+          console.log('Refreshed admins data:', fetchData);
+          if (Array.isArray(fetchData)) {
+            setAdmins(fetchData);
+          } else if (fetchData.data && Array.isArray(fetchData.data)) {
+            setAdmins(fetchData.data);
+          }
+        }
+        
+        setIsEditDialogOpen(false);
+        setEditingAdmin(null);
+        // Reset edit form
+        setEditAdmin({
+          name: '',
+          email: '',
+          board: '',
+          schoolName: '',
+          isActive: true
+        });
+        toast({
+          title: "Success",
+          description: "Admin updated successfully",
+        });
+      } else {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText || `Server error: ${response.status}` };
+        }
+        console.error('Update admin error response:', errorData);
+        throw new Error(errorData.message || 'Failed to update admin');
+      }
+    } catch (error) {
+      console.error('Error updating admin:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update admin",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingAdmin(false);
+    }
+  };
+
   const handleDeleteAdmin = async (adminId: string) => {
     if (!adminId) {
       toast({
@@ -185,7 +311,7 @@ export default function AdminManagement() {
     }
 
     try {
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/super-admin/admins/${adminId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/super-admin/admins/${adminId}`, {
         method: 'DELETE',
       });
 
@@ -269,12 +395,118 @@ export default function AdminManagement() {
                   placeholder="Enter temporary password"
                 />
               </div>
+              <div>
+                <Label htmlFor="board">Board *</Label>
+                <Select
+                  value={newAdmin.board}
+                  onValueChange={(value) => setNewAdmin({ ...newAdmin, board: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CBSE_AP">CBSE Andhra Pradesh</SelectItem>
+                    <SelectItem value="CBSE_TS">CBSE Telangana State</SelectItem>
+                    <SelectItem value="STATE_AP">State Andhra Pradesh</SelectItem>
+                    <SelectItem value="STATE_TS">State Telangana State</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">Select the board for this admin</p>
+              </div>
+              <div>
+                <Label htmlFor="schoolName">School Name *</Label>
+                <Input
+                  id="schoolName"
+                  value={newAdmin.schoolName}
+                  onChange={(e) => setNewAdmin({ ...newAdmin, schoolName: e.target.value })}
+                  placeholder="Enter school name"
+                />
+              </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button onClick={handleAddAdmin} disabled={isAddingAdmin}>
                   {isAddingAdmin ? 'Adding...' : 'Add Admin'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Admin Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Admin</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Full Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={editAdmin.name}
+                  onChange={(e) => setEditAdmin({ ...editAdmin, name: e.target.value })}
+                  placeholder="Enter admin's full name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-email">Email *</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editAdmin.email}
+                  onChange={(e) => setEditAdmin({ ...editAdmin, email: e.target.value })}
+                  placeholder="Enter admin's email"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-board">Board *</Label>
+                <Select
+                  value={editAdmin.board}
+                  onValueChange={(value) => setEditAdmin({ ...editAdmin, board: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CBSE_AP">CBSE Andhra Pradesh</SelectItem>
+                    <SelectItem value="CBSE_TS">CBSE Telangana State</SelectItem>
+                    <SelectItem value="STATE_AP">State Andhra Pradesh</SelectItem>
+                    <SelectItem value="STATE_TS">State Telangana State</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-schoolName">School Name *</Label>
+                <Input
+                  id="edit-schoolName"
+                  value={editAdmin.schoolName}
+                  onChange={(e) => setEditAdmin({ ...editAdmin, schoolName: e.target.value })}
+                  placeholder="Enter school name"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="edit-isActive"
+                  checked={editAdmin.isActive}
+                  onChange={(e) => setEditAdmin({ ...editAdmin, isActive: e.target.checked })}
+                  className="rounded"
+                />
+                <Label htmlFor="edit-isActive" className="cursor-pointer">
+                  Active Account
+                </Label>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditingAdmin(null);
+                }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateAdmin} disabled={isUpdatingAdmin}>
+                  {isUpdatingAdmin ? 'Updating...' : 'Update Admin'}
                 </Button>
               </div>
             </div>
@@ -338,6 +570,17 @@ export default function AdminManagement() {
                   <div>
                     <CardTitle className="text-lg">{admin?.name || 'Unknown Admin'}</CardTitle>
                     <p className="text-sm text-gray-600">{admin?.email || 'No email'}</p>
+                    {admin?.schoolName && (
+                      <p className="text-xs text-blue-600 font-medium mt-1">{admin.schoolName}</p>
+                    )}
+                    {admin?.board && (
+                      <Badge variant="outline" className="mt-1 text-xs">
+                        {admin.board === 'CBSE_AP' ? 'CBSE AP' :
+                         admin.board === 'CBSE_TS' ? 'CBSE TS' :
+                         admin.board === 'STATE_AP' ? 'State AP' :
+                         admin.board === 'STATE_TS' ? 'State TS' : admin.board}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <Badge variant={(admin?.status || 'inactive') === 'active' ? 'default' : 'secondary'}>
@@ -365,14 +608,19 @@ export default function AdminManagement() {
                     Added: {admin?.joinDate ? new Date(admin.joinDate).toLocaleDateString() : 'Unknown'}
                   </span>
                   <div className="flex space-x-2">
-                    <Button size="sm" variant="outline">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleEditClick(admin)}
+                      className="hover:bg-blue-50"
+                    >
                       <EditIcon className="h-4 w-4" />
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline" 
                       onClick={() => handleDeleteAdmin(admin?.id || '')}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </Button>

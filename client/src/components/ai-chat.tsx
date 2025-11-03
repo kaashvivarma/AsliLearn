@@ -8,6 +8,7 @@ import { Send, Zap, Loader2, MessageCircle } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/lib/api-config";
 
 interface Message {
   role: "user" | "assistant";
@@ -38,7 +39,7 @@ export default function AIChat({ userId, context, className }: AIChatProps) {
   const { data: sessions, isLoading } = useQuery({
     queryKey: ["/api/users", userId, "chat-sessions"],
     queryFn: async () => {
-      const response = await apiRequest("GET", `https://asli-stud-back-production.up.railway.app/api/users/${userId}/chat-sessions`);
+      const response = await apiRequest("GET", `${API_BASE_URL}/api/users/${userId}/chat-sessions`);
       return response.json();
     },
   });
@@ -49,7 +50,7 @@ export default function AIChat({ userId, context, className }: AIChatProps) {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { message: string; context?: any }) => {
-      const response = await apiRequest("POST", "https://asli-stud-back-production.up.railway.app/api/ai-chat", {
+      const response = await apiRequest("POST", `${API_BASE_URL}/api/ai-chat`, {
         userId,
         message: data.message,
         context: data.context || context,
@@ -72,7 +73,7 @@ export default function AIChat({ userId, context, className }: AIChatProps) {
   // Image analysis mutation
   const analyzeImageMutation = useMutation({
     mutationFn: async (data: { image: string; context?: string }) => {
-      const response = await apiRequest("POST", "https://asli-stud-back-production.up.railway.app/api/ai-chat/analyze-image", data);
+      const response = await apiRequest("POST", `${API_BASE_URL}/api/ai-chat/analyze-image`, data);
       return response.json();
     },
     onSuccess: (data) => {

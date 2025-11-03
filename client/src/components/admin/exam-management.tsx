@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   Plus, 
   Edit, 
@@ -101,7 +102,7 @@ const ExamManagement = () => {
     try {
       // Check if user is authenticated
       const token = localStorage.getItem('authToken');
-      const authResponse = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/me', {
+      const authResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -132,7 +133,7 @@ const ExamManagement = () => {
   const fetchExams = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/exams', {
+      const response = await fetch('${API_BASE_URL}/api/admin/exams', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -156,7 +157,7 @@ const ExamManagement = () => {
     try {
       console.log('Fetching questions for exam ID:', examId);
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/exams/${examId}/questions`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/exams/${examId}/questions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -185,7 +186,7 @@ const ExamManagement = () => {
   const handleCreateExam = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/exams', {
+      const response = await fetch('${API_BASE_URL}/api/admin/exams', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -209,7 +210,7 @@ const ExamManagement = () => {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/exams/${editingExam._id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/exams/${editingExam._id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -234,7 +235,7 @@ const ExamManagement = () => {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/exams/${examId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/exams/${examId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -281,7 +282,7 @@ const ExamManagement = () => {
       console.log('Question data:', questionData);
       
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/exams/${selectedExam._id}/questions`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/exams/${selectedExam._id}/questions`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -326,7 +327,7 @@ const ExamManagement = () => {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/questions/${editingQuestion._id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/questions/${editingQuestion._id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -351,7 +352,7 @@ const ExamManagement = () => {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/questions/${questionId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/questions/${questionId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -372,7 +373,7 @@ const ExamManagement = () => {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/upload-question-image', {
+      const response = await fetch('${API_BASE_URL}/api/admin/upload-question-image', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

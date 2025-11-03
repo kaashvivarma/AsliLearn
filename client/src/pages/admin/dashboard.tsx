@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   BookOpen, 
   Users, 
@@ -38,9 +39,7 @@ import ClassManagement from '@/components/admin/class-management';
 import ClassDashboard from '@/components/admin/class-dashboard';
 import TeacherManagement from '@/components/admin/teacher-management';
 import SubjectManagement from '@/components/admin/subject-management';
-import ExamManagement from '@/components/admin/exam-management';
-import VideoManagement from '@/components/admin/video-management';
-import AssessmentManagement from '@/components/admin/assessment-management';
+import ExamViewOnly from '@/components/admin/exam-view-only';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -60,7 +59,7 @@ const AdminDashboard = () => {
           return;
         }
 
-        const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -141,7 +140,7 @@ const AdminDashboard = () => {
       }
 
       // Get admin info first
-      const adminRes = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/me', {
+      const adminRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -156,16 +155,16 @@ const AdminDashboard = () => {
 
       // Fetch admin-specific data using admin endpoints
       const [studentsRes, teachersRes, videosRes, assessmentsRes] = await Promise.all([
-        fetch('https://asli-stud-back-production.up.railway.app/api/admin/users', {
+        fetch(`${API_BASE_URL}/api/admin/users`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('https://asli-stud-back-production.up.railway.app/api/admin/teachers', {
+        fetch(`${API_BASE_URL}/api/admin/teachers`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('https://asli-stud-back-production.up.railway.app/api/videos', {
+        fetch(`${API_BASE_URL}/api/videos`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('https://asli-stud-back-production.up.railway.app/api/assessments', {
+        fetch(`${API_BASE_URL}/api/assessments`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -363,33 +362,9 @@ const AdminDashboard = () => {
                     </button>
                     
                     <button
-                      onClick={() => setActiveTab('videos')}
-                      className={`w-full flex items-center space-x-responsive px-responsive py-responsive rounded-responsive text-left transition-all duration-200 backdrop-blur-sm text-responsive-sm ${
-                        activeTab === 'videos' 
-                          ? 'bg-gradient-to-r from-pink-100 to-rose-100 text-pink-900 border-r-4 border-pink-500 shadow-lg' 
-                          : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-900'
-                      }`}
-                    >
-                      <Play className="w-4 h-4" />
-                      <span className="font-medium">Videos</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setActiveTab('assessments')}
-                      className={`w-full flex items-center space-x-responsive px-responsive py-responsive rounded-responsive text-left transition-all duration-200 backdrop-blur-sm text-responsive-sm ${
-                        activeTab === 'assessments' 
-                          ? 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 border-r-4 border-amber-500 shadow-lg' 
-                          : 'text-gray-700 hover:bg-gradient-to-r hover:from-amber-50 hover:to-yellow-50 hover:text-amber-900'
-                      }`}
-                    >
-                      <Target className="w-4 h-4" />
-                      <span className="font-medium">Assessments</span>
-                    </button>
-                    
-                    <button
                       onClick={async () => {
                         try {
-                          const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/logout', {
+                          const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
                             method: 'POST',
                             headers: {
                               'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
@@ -507,30 +482,6 @@ const AdminDashboard = () => {
             <span className="font-medium">Weekend Exams</span>
           </button>
           
-          <button
-            onClick={() => setActiveTab('videos')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 backdrop-blur-sm ${
-              activeTab === 'videos' 
-                ? 'bg-gradient-to-r from-pink-100 to-rose-100 text-pink-900 border-r-4 border-pink-500 shadow-lg' 
-                : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-900'
-            }`}
-          >
-            <Play className="w-5 h-5" />
-            <span className="font-medium">Videos</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('assessments')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 backdrop-blur-sm ${
-              activeTab === 'assessments' 
-                ? 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 border-r-4 border-amber-500 shadow-lg' 
-                : 'text-gray-700 hover:bg-gradient-to-r hover:from-amber-50 hover:to-yellow-50 hover:text-amber-900'
-            }`}
-          >
-            <Target className="w-5 h-5" />
-            <span className="font-medium">Assessments</span>
-          </button>
-          
         </nav>
       </div>
       )}
@@ -551,7 +502,7 @@ const AdminDashboard = () => {
                     variant="outline"
                     onClick={async () => {
                       try {
-                        const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/logout', {
+                        const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
                           method: 'POST',
                           headers: {
                             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
@@ -791,9 +742,7 @@ const AdminDashboard = () => {
           {activeTab === 'classes' && <ClassDashboard />}
           {activeTab === 'teachers' && <TeacherManagement />}
           {activeTab === 'subjects' && <SubjectManagement />}
-          {activeTab === 'exams' && <ExamManagement />}
-          {activeTab === 'videos' && <VideoManagement />}
-          {activeTab === 'assessments' && <AssessmentManagement />}
+          {activeTab === 'exams' && <ExamViewOnly />}
           {/* Analytics tab removed */}
         </div>
       </div>

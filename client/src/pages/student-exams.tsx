@@ -14,12 +14,15 @@ import {
   AlertCircle,
   Target,
   Award,
-  TrendingUp
+  TrendingUp,
+  Eye
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import AnimatedExam from '@/components/animated-exam';
 import ExamResults from '@/components/exam-results';
+import StudentRanking from '@/components/student/student-ranking';
+import { API_BASE_URL } from '@/lib/api-config';
 
 interface Question {
   _id: string;
@@ -74,6 +77,20 @@ export default function StudentExams() {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<string>('available');
+
+  // Helper function to extract examId from result (handles both populated object and ObjectId)
+  const getExamIdFromResult = (result: any): string | null => {
+    if (!result || !result.examId) return null;
+    
+    // If examId is populated, it's an object, use _id
+    if (typeof result.examId === 'object' && result.examId._id) {
+      return result.examId._id.toString();
+    }
+    // If examId is just the ObjectId, convert to string
+    return result.examId.toString();
+  };
 
   // Reset states when component mounts
   useEffect(() => {
@@ -100,7 +117,7 @@ export default function StudentExams() {
         }
 
         console.log('🔍 Student Exams: Making auth request to backend...');
-        const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -151,7 +168,7 @@ export default function StudentExams() {
       console.log('🔍 Student Exams: Fetching student exams...');
       const token = localStorage.getItem('authToken');
       console.log('🔍 Student Exams: Token for exams API:', !!token);
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/student/exams', {
+      const response = await fetch(`${API_BASE_URL}/api/student/exams`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -185,7 +202,7 @@ export default function StudentExams() {
       console.log('🔍 Student Exams: Fetching assessments...');
       const token = localStorage.getItem('authToken');
       console.log('🔍 Student Exams: Token for assessments API:', !!token);
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/assessments', {
+      const response = await fetch(`${API_BASE_URL}/api/assessments`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -209,13 +226,13 @@ export default function StudentExams() {
   });
 
   // Fetch exam results
-  const { data: results } = useQuery({
+  const { data: results, refetch: refetchResults } = useQuery({
     queryKey: ['/api/student/exam-results'],
     queryFn: async () => {
       console.log('🔍 Student Exams: Fetching exam results...');
       const token = localStorage.getItem('authToken');
       console.log('🔍 Student Exams: Token for results API:', !!token);
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/student/exam-results', {
+      const response = await fetch(`${API_BASE_URL}/api/student/exam-results`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -226,9 +243,20 @@ export default function StudentExams() {
         console.log('❌ Student Exams: Results API failed with status:', response.status);
         throw new Error('Failed to fetch results');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('✅ Student Exams: Fetched exam results:', {
+        count: data.data?.length || 0,
+        results: data.data?.map((r: any) => ({
+          examId: getExamIdFromResult(r),
+          examTitle: r.examTitle || r.examId?.title,
+          percentage: r.percentage
+        })) || []
+      });
+      return data;
     },
-    enabled: isAuthenticated // Only run when authenticated
+    enabled: isAuthenticated, // Only run when authenticated
+    refetchOnWindowFocus: true,
+    refetchOnMount: true
   });
 
   const handleStartExam = (exam: Exam) => {
@@ -236,15 +264,53 @@ export default function StudentExams() {
     console.log('Current exam result state:', examResult);
     console.log('Current taking exam state:', isTakingExam);
     
+    // Check if student has already attempted this exam
+    const hasAttempted = results?.data?.some((result: any) => {
+      const resultExamId = getExamIdFromResult(result);
+      const examId = exam._id?.toString();
+      return resultExamId === examId;
+    });
+    
+    if (hasAttempted) {
+      alert('You have already attempted this exam. Please check the "Attempted Exams" tab to view your results.');
+      return;
+    }
+    
     // Reset all states when starting a new exam
     setExamResult(null);
     setCurrentExam(exam);
     setIsTakingExam(true);
   };
 
-  const handleExamComplete = (result: ExamResult) => {
+  const handleExamComplete = async (result: ExamResult) => {
     setExamResult(result);
     setIsTakingExam(false);
+    
+    // Invalidate and refetch exam results to update the UI
+    console.log('🔄 Invalidating exam results query after exam completion');
+    console.log('📋 Exam result data:', result);
+    
+    // Wait a bit for the backend to save
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Invalidate and refetch exam results
+    await queryClient.invalidateQueries({ queryKey: ['/api/student/exam-results'] });
+    
+    // Also refetch exams to ensure the list is updated
+    await queryClient.invalidateQueries({ queryKey: ['/api/student/exams'] });
+    
+    // Force refetch manually as well
+    await refetchResults();
+    await queryClient.refetchQueries({ queryKey: ['/api/student/exams'] });
+    
+    console.log('✅ Exam results query invalidated and refetched - attempted exams should update');
+    console.log('📋 Current results after refetch:', results?.data?.length || 0);
+    
+    // Switch to attempted exams tab after a brief delay to show the completed exam
+    setTimeout(() => {
+      setActiveTab('attempted');
+      console.log('🔄 Switched to attempted exams tab');
+    }, 1000);
   };
 
   const handleExitExam = () => {
@@ -253,16 +319,18 @@ export default function StudentExams() {
   };
 
   const handleRetakeExam = () => {
-    if (currentExam) {
-      setExamResult(null);
-      setIsTakingExam(true);
-    }
+    // Retaking is now disabled - exams can only be taken once
+    alert('Exams can only be attempted once. Please check your results in the "Attempted Exams" tab.');
   };
 
   const handleBackToExams = () => {
     setCurrentExam(null);
     setExamResult(null);
     setIsTakingExam(false);
+    
+    // Refresh exam results to show the newly completed exam
+    queryClient.invalidateQueries({ queryKey: ['/api/student/exam-results'] });
+    queryClient.refetchQueries({ queryKey: ['/api/student/exam-results'] });
   };
 
   const getExamTypeColor = (type: string) => {
@@ -410,18 +478,42 @@ export default function StudentExams() {
           </div>
         </div>
 
-        <Tabs defaultValue="available" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="available">Available Exams</TabsTrigger>
             <TabsTrigger value="assessments">Assessments</TabsTrigger>
-            <TabsTrigger value="results">My Results</TabsTrigger>
+            <TabsTrigger value="attempted">Attempted Exams</TabsTrigger>
+            <TabsTrigger value="ranking">My Rankings</TabsTrigger>
             <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
           </TabsList>
 
           {/* Available Exams */}
           <TabsContent value="available" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {exams?.filter((exam: Exam) => getExamStatus(exam).status === 'active').map((exam: Exam) => {
+              {exams?.filter((exam: Exam) => {
+                const status = getExamStatus(exam);
+                // Only show exams that are active and not yet attempted
+                const hasAttempted = results?.data?.some((result: any) => {
+                  const resultExamId = getExamIdFromResult(result);
+                  const examId = exam._id?.toString();
+                  
+                  const isMatch = resultExamId === examId;
+                  if (isMatch) {
+                    console.log('✅ Match found:', {
+                      examTitle: exam.title,
+                      resultExamId,
+                      examId,
+                      resultExamIdType: typeof resultExamId,
+                      examIdType: typeof examId
+                    });
+                  }
+                  return isMatch;
+                });
+                if (hasAttempted) {
+                  console.log('⚠️ Exam already attempted:', exam.title);
+                }
+                return status.status === 'active' && !hasAttempted;
+              }).map((exam: Exam) => {
                 const status = getExamStatus(exam);
                 return (
                   <Card key={exam._id} className="hover:shadow-lg transition-shadow bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
@@ -483,11 +575,179 @@ export default function StudentExams() {
               })}
             </div>
 
-            {exams?.filter((exam: Exam) => getExamStatus(exam).status === 'active').length === 0 && (
+            {exams?.filter((exam: Exam) => {
+              const status = getExamStatus(exam);
+              const hasAttempted = results?.data?.some((result: any) => {
+                const resultExamId = getExamIdFromResult(result);
+                const examId = exam._id?.toString();
+                return resultExamId === examId;
+              });
+              return status.status === 'active' && !hasAttempted;
+            }).length === 0 && (
               <div className="text-center py-12">
                 <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Exams</h3>
-                <p className="text-gray-600">Check back later for new exams</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Available Exams</h3>
+                <p className="text-gray-600">All available exams have been attempted or check back later for new exams</p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Attempted Exams */}
+          <TabsContent value="attempted" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {exams?.filter((exam: Exam) => {
+                // Show exams that have been attempted
+                return results?.data?.some((result: any) => {
+                  const resultExamId = getExamIdFromResult(result);
+                  const examId = exam._id?.toString();
+                  return resultExamId === examId;
+                });
+              }).map((exam: Exam) => {
+                const result = results?.data?.find((r: any) => {
+                  const resultExamId = getExamIdFromResult(r);
+                  const examId = exam._id?.toString();
+                  return resultExamId === examId;
+                });
+                if (!result) return null;
+                
+                return (
+                  <Card key={exam._id} className="hover:shadow-lg transition-shadow bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg mb-2">{exam.title}</CardTitle>
+                          <p className="text-sm text-gray-600 mb-3">{exam.description}</p>
+                        </div>
+                        <Badge className="bg-green-100 text-green-700">
+                          Attempted
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {/* Score Display */}
+                        <div className="text-center p-4 bg-white/60 rounded-lg">
+                          <div className="text-3xl font-bold text-gray-900 mb-1">
+                            {result.percentage?.toFixed(1) || '0'}%
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {result.obtainedMarks || 0}/{result.totalMarks || exam.totalMarks} marks
+                          </div>
+                        </div>
+
+                        {/* Performance Breakdown */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Correct Answers</span>
+                            <span className="text-green-600 font-medium">{result.correctAnswers || 0}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Wrong Answers</span>
+                            <span className="text-red-600 font-medium">{result.wrongAnswers || 0}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Unattempted</span>
+                            <span className="text-gray-600 font-medium">{result.unattempted || 0}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Time Taken</span>
+                            <span className="font-medium">
+                              {result.timeTaken ? `${Math.floor(result.timeTaken / 60)}m ${result.timeTaken % 60}s` : 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Grade Badge */}
+                        <div className="text-center">
+                          <Badge className={
+                            (result.percentage || 0) >= 70 ? 'bg-green-100 text-green-700' :
+                            (result.percentage || 0) >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }>
+                            {(result.percentage || 0) >= 70 ? 'Excellent' :
+                             (result.percentage || 0) >= 50 ? 'Good' : 'Needs Improvement'}
+                          </Badge>
+                        </div>
+
+                        {/* View Details Button */}
+                        <Button 
+                          variant="outline" 
+                          className="w-full border-green-300 text-green-700 hover:bg-green-50"
+                          onClick={async () => {
+                            console.log('📋 Viewing details for exam:', exam.title);
+                            console.log('📋 Exam result:', result);
+                            
+                            // Ensure exam has questions loaded
+                            let examWithQuestions = exam;
+                            if (!exam.questions || exam.questions.length === 0) {
+                              try {
+                                const token = localStorage.getItem('authToken');
+                                const response = await fetch(`${API_BASE_URL}/api/student/exams/${exam._id}`, {
+                                  headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json',
+                                  }
+                                });
+                                if (response.ok) {
+                                  const data = await response.json();
+                                  examWithQuestions = data.data || exam;
+                                  console.log('✅ Loaded exam with questions:', examWithQuestions.questions?.length || 0);
+                                }
+                              } catch (error) {
+                                console.error('❌ Failed to load exam questions:', error);
+                              }
+                            }
+                            
+                            // Format the result to match ExamResult interface
+                            const formattedResult: ExamResult = {
+                              examId: getExamIdFromResult(result) || exam._id,
+                              examTitle: result.examTitle || exam.title,
+                              totalQuestions: result.totalQuestions || exam.totalQuestions || 0,
+                              correctAnswers: result.correctAnswers || 0,
+                              wrongAnswers: result.wrongAnswers || 0,
+                              unattempted: result.unattempted || 0,
+                              totalMarks: result.totalMarks || exam.totalMarks || 0,
+                              obtainedMarks: result.obtainedMarks || 0,
+                              percentage: result.percentage || 0,
+                              timeTaken: result.timeTaken || 0,
+                              subjectWiseScore: result.subjectWiseScore || {
+                                maths: { correct: 0, total: 0, marks: 0 },
+                                physics: { correct: 0, total: 0, marks: 0 },
+                                chemistry: { correct: 0, total: 0, marks: 0 }
+                              },
+                              answers: result.answers || {}
+                            };
+                            
+                            // Set the exam and result to show the detailed view
+                            setCurrentExam(examWithQuestions);
+                            setExamResult(formattedResult);
+                            setIsTakingExam(false);
+                            
+                            // Scroll to top to show the results
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Details
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {exams?.filter((exam: Exam) => {
+              return results?.data?.some((result: any) => {
+                const resultExamId = getExamIdFromResult(result);
+                const examId = exam._id?.toString();
+                return resultExamId === examId;
+              });
+            }).length === 0 && (
+              <div className="text-center py-12">
+                <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Attempted Exams</h3>
+                <p className="text-gray-600">Start taking exams to see your results here</p>
               </div>
             )}
           </TabsContent>
@@ -563,89 +823,10 @@ export default function StudentExams() {
             )}
           </TabsContent>
 
-          {/* My Results */}
-          <TabsContent value="results" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {results?.map((result: ExamResult & { examTitle: string }) => (
-                <Card key={result.examId} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-lg">{result.examTitle}</CardTitle>
-                      <Badge className="bg-green-100 text-green-700">
-                        Completed
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {/* Score */}
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-gray-900 mb-1">
-                          {result.percentage.toFixed(1)}%
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {result.obtainedMarks}/{result.totalMarks} marks
-                        </div>
-                      </div>
 
-                      {/* Performance Stats */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Correct</span>
-                          <span className="text-green-600 font-medium">{result.correctAnswers}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Wrong</span>
-                          <span className="text-red-600 font-medium">{result.wrongAnswers}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Time Taken</span>
-                          <span className="font-medium">
-                            {Math.floor(result.timeTaken / 60)}m {result.timeTaken % 60}s
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Grade */}
-                      <div className="text-center">
-                        <Badge className={
-                          result.percentage >= 70 ? 'bg-green-100 text-green-700' :
-                          result.percentage >= 50 ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }>
-                          {result.percentage >= 70 ? 'Excellent' :
-                           result.percentage >= 50 ? 'Good' : 'Needs Improvement'}
-                        </Badge>
-                      </div>
-
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => {
-                          // Find the exam and start retake
-                          const exam = exams?.find((e: Exam) => e._id === result.examId);
-                          if (exam) {
-                            setCurrentExam(exam);
-                            setIsTakingExam(true);
-                          }
-                        }}
-                      >
-                        <Trophy className="w-4 h-4 mr-2" />
-                        Retake Exam
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {(!results || results.length === 0) && (
-              <div className="text-center py-12">
-                <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Yet</h3>
-                <p className="text-gray-600">Complete an exam to see your results here</p>
-              </div>
-            )}
+          {/* Student Rankings */}
+          <TabsContent value="ranking" className="space-y-6">
+            <StudentRanking />
           </TabsContent>
 
           {/* Upcoming Exams */}

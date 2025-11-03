@@ -8,7 +8,6 @@ import Navigation from "@/components/navigation";
 import AIChat from "@/components/ai-chat";
 import ProgressChart from "@/components/progress-chart";
 import { 
-  Flame, 
   CheckCircle, 
   TrendingUp, 
   BarChart3, 
@@ -23,23 +22,24 @@ import {
   Award,
   Target
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useEffect } from "react";
 import YouTubePlayer from '@/components/youtube-player';
 import DriveViewer from '@/components/drive-viewer';
 import VideoModal from '@/components/video-modal';
+import AsliPrepContent from '@/components/student/asli-prep-content';
+import { API_BASE_URL } from '@/lib/api-config';
 
 // Mock user ID - in a real app, this would come from authentication
 const MOCK_USER_ID = "user-1";
 
 export default function Dashboard() {
+  const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
   const [user, setUser] = useState<any>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [videos, setVideos] = useState<any[]>([]);
-  const [assessments, setAssessments] = useState<any[]>([]);
-  const [assessmentsLoading, setAssessmentsLoading] = useState(true);
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
@@ -60,7 +60,7 @@ export default function Dashboard() {
           return;
         }
 
-        const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -102,96 +102,156 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchContent = async () => {
       try {
-        const [videosRes, assessmentsRes] = await Promise.all([
-          fetch('https://asli-stud-back-production.up.railway.app/api/student/videos', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-              'Content-Type': 'application/json'
-            }
-          }),
-          fetch('https://asli-stud-back-production.up.railway.app/api/student/assessments', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-              'Content-Type': 'application/json'
-            }
-          })
-        ]);
+        const videosRes = await fetch(`${API_BASE_URL}/api/student/videos`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
         if (videosRes.ok) {
           const videosData = await videosRes.json();
           setVideos((videosData.data || videosData).slice(0, 3)); // Show first 3 videos
         }
-
-        if (assessmentsRes.ok) {
-          const assessmentsData = await assessmentsRes.json();
-          console.log('Dashboard fetched assessments:', assessmentsData);
-          console.log('Number of assessments:', (assessmentsData.data || assessmentsData).length);
-          setAssessments((assessmentsData.data || assessmentsData).slice(0, 3)); // Show first 3 assessments
-          setAssessmentsLoading(false);
-        } else {
-          console.error('Failed to fetch assessments:', assessmentsRes.status);
-          setAssessmentsLoading(false);
-        }
       } catch (error) {
         console.error('Failed to fetch content:', error);
-        // Set mock data for development
-        setVideos([
-          {
-            id: '1',
-            title: 'Calculus Fundamentals',
-            description: 'Basic calculus concepts',
-            subject: 'Mathematics',
-            duration: 45,
-            youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-            isYouTubeVideo: true,
-            isActive: true
-          },
-          {
-            id: '2',
-            title: 'Physics Mechanics',
-            description: 'Introduction to mechanics',
-            subject: 'Physics',
-            duration: 60,
-            videoUrl: 'https://example.com/video.mp4',
-            isYouTubeVideo: false,
-            isActive: true
-          }
-        ]);
-        setAssessments([
-          {
-            id: '1',
-            title: 'Mathematics Quiz',
-            description: 'Basic math concepts',
-            subject: 'Mathematics',
-            type: 'quiz',
-            difficulty: 'easy',
-            duration: 30,
-            totalMarks: 100,
-            passingMarks: 50,
-            isDriveQuiz: true,
-            driveLink: 'https://drive.google.com/file/d/1ABC123/view',
-            isActive: true
-          },
-          {
-            id: '2',
-            title: 'Physics Exam',
-            description: 'Physics midterm exam',
-            subject: 'Physics',
-            type: 'exam',
-            difficulty: 'medium',
-            duration: 120,
-            totalMarks: 150,
-            passingMarks: 90,
-            isDriveQuiz: false,
-            isActive: true
-          }
-        ]);
+        setVideos([]);
       } finally {
         setIsLoadingContent(false);
       }
     };
 
     fetchContent();
+  }, []);
+
+  // Fetch real dashboard data
+  const [stats, setStats] = useState({ questionsAnswered: 0, accuracyRate: 0, rank: 0 });
+  const [exams, setExams] = useState<any[]>([]);
+  const [subjectProgress, setSubjectProgress] = useState<any[]>([]);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          setIsLoadingDashboard(false);
+          return;
+        }
+
+        // Fetch exam results to calculate stats
+        const [examsRes, resultsRes, rankingsRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/student/exams`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          fetch(`${API_BASE_URL}/api/student/exam-results`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          fetch(`${API_BASE_URL}/api/student/rankings`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+        ]);
+
+        let examsData = [];
+        if (examsRes.ok) {
+          const examsJson = await examsRes.json();
+          examsData = examsJson.data || [];
+          setExams(examsData);
+        }
+
+        let resultsData = [];
+        if (resultsRes.ok) {
+          const resultsJson = await resultsRes.json();
+          resultsData = resultsJson.data || [];
+        }
+
+        let rankingsData = [];
+        if (rankingsRes.ok) {
+          const rankingsJson = await rankingsRes.json();
+          rankingsData = rankingsJson.data || [];
+        }
+
+        // Calculate real stats from exam results
+        const totalQuestions = resultsData.reduce((sum: number, r: any) => sum + (r.totalQuestions || 0), 0);
+        const correctAnswers = resultsData.reduce((sum: number, r: any) => sum + (r.correctAnswers || 0), 0);
+        const totalMarks = resultsData.reduce((sum: number, r: any) => sum + (r.totalMarks || 0), 0);
+        const obtainedMarks = resultsData.reduce((sum: number, r: any) => sum + (r.obtainedMarks || 0), 0);
+        const avgAccuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+        const avgScore = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
+        
+        // Get average rank
+        const avgRank = rankingsData.length > 0 
+          ? Math.round(rankingsData.reduce((sum: number, r: any) => sum + (r.rank || 0), 0) / rankingsData.length)
+          : 0;
+
+        // Calculate subject-wise progress from exam results
+        const subjectMap = new Map<string, { total: number; correct: number; exams: number }>();
+        
+        resultsData.forEach((result: any) => {
+          if (result.subjectWiseScore && typeof result.subjectWiseScore === 'object') {
+            Object.entries(result.subjectWiseScore).forEach(([subject, score]: [string, any]) => {
+              if (!subjectMap.has(subject)) {
+                subjectMap.set(subject, { total: 0, correct: 0, exams: 0 });
+              }
+              const subj = subjectMap.get(subject)!;
+              subj.total += score.total || 0;
+              subj.correct += score.correct || 0;
+              subj.exams += 1;
+            });
+          }
+        });
+
+        // Convert subject map to progress array
+        const progressArray = Array.from(subjectMap.entries()).map(([name, data]) => {
+          const progress = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+          const colors = [
+            'bg-blue-100 text-blue-600',
+            'bg-green-100 text-green-600',
+            'bg-purple-100 text-purple-600',
+            'bg-orange-100 text-orange-600',
+            'bg-pink-100 text-pink-600'
+          ];
+          return {
+            id: name.toLowerCase(),
+            name: name,
+            progress: progress,
+            trend: progress >= 70 ? 'up' as const : progress >= 50 ? 'neutral' as const : 'down' as const,
+            currentTopic: `${name} - Recent Exams`,
+            color: colors[Math.min(subjectMap.size - 1, Math.floor(Math.random() * colors.length))]
+          };
+        });
+
+        // If no subject progress from exams, set default empty
+        if (progressArray.length === 0) {
+          setSubjectProgress([]);
+        } else {
+          setSubjectProgress(progressArray);
+        }
+
+        // Set calculated stats
+        setStats({
+          questionsAnswered: totalQuestions,
+          accuracyRate: Math.round(avgAccuracy),
+          rank: avgRank || 0
+        });
+
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setIsLoadingDashboard(false);
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
   const handleWatchVideo = (video: any) => {
@@ -207,7 +267,7 @@ export default function Dashboard() {
   // Dashboard data is now handled by other queries (userData, contentData)
   // Removed problematic mock query that was causing 404 errors
 
-  if (isLoadingUser || isLoadingContent) {
+  if (isLoadingUser || isLoadingContent || isLoadingDashboard) {
     return (
       <>
         <Navigation />
@@ -225,16 +285,8 @@ export default function Dashboard() {
     );
   }
 
-  // Use mock data for stats since we don't have a real dashboard API yet
-  const stats = { streak: 0, questionsAnswered: 0, accuracyRate: 0, rank: 0 };
   const recommendedVideos = [];
-  const availableTests = [];
-
-  const subjectProgress = [
-    { id: "1", name: "Physics", progress: 75, trend: "up" as const, currentTopic: "Mechanics - Rotational Motion", color: "bg-blue-100 text-blue-600" },
-    { id: "2", name: "Chemistry", progress: 62, trend: "up" as const, currentTopic: "Organic - Alcohols & Ethers", color: "bg-green-100 text-green-600" },
-    { id: "3", name: "Mathematics", progress: 58, trend: "neutral" as const, currentTopic: "Calculus - Integration", color: "bg-purple-100 text-purple-600" },
-  ];
+  const availableTests = exams.slice(0, 2); // Show first 2 exams as available tests
 
   return (
     <>
@@ -253,10 +305,17 @@ export default function Dashboard() {
               </p>
               
               <div className="flex-responsive-col gap-responsive">
-                <Button className="bg-white text-primary hover:bg-blue-50 w-full sm:w-auto">
+                <Button 
+                  className="bg-white text-primary hover:bg-blue-50 w-full sm:w-auto"
+                  onClick={() => setLocation('/learning-paths')}
+                >
                   Continue Learning
                 </Button>
-                <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20 w-full sm:w-auto">
+                <Button 
+                  variant="outline" 
+                  className="border-white/30 bg-white/10 text-white hover:bg-white/20 w-full sm:w-auto"
+                  onClick={() => setLocation('/ai-tutor')}
+                >
                   Ask AI Tutor
                 </Button>
               </div>
@@ -272,19 +331,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid-responsive-4 gap-responsive mb-responsive">
-          <div className="stats-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-responsive-xs">Study Streak</p>
-                <p className="text-responsive-lg font-bold text-gray-900">{stats.streak} days</p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Flame className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </div>
-
+        <div className="grid-responsive-3 gap-responsive mb-responsive">
           <div className="stats-card">
             <div className="flex items-center justify-between">
               <div>
@@ -323,113 +370,35 @@ export default function Dashboard() {
         </div>
 
         {/* Content Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
 
-          {/* Videos Section */}
-          <Card className="hover:shadow-lg transition-shadow duration-200">
+          {/* Asli Prep Exclusive Section */}
+          <Card className="hover:shadow-lg transition-shadow duration-200 border-2 border-gradient-to-r from-purple-200 to-pink-200">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-gray-900">Video Lectures</CardTitle>
-                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                  {videos.length}
+                <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
+                  <Award className="w-5 h-5 mr-2 text-purple-600" />
+                  Asli Learn Exclusive
+                </CardTitle>
+                <Badge variant="outline" className="bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 border-purple-200">
+                  Premium
                 </Badge>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {videos.map((video, index) => (
-                  <div key={video.id} className={`flex items-center justify-between p-3 ${index % 2 === 0 ? 'bg-purple-50' : 'bg-orange-50'} rounded-lg`}>
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 ${index % 2 === 0 ? 'bg-purple-100' : 'bg-orange-100'} rounded-full flex items-center justify-center`}>
-                        {video.isYouTubeVideo ? (
-                          <Play className={`w-4 h-4 ${index % 2 === 0 ? 'text-purple-600' : 'text-orange-600'}`} />
-                        ) : (
-                          <Play className={`w-4 h-4 ${index % 2 === 0 ? 'text-purple-600' : 'text-orange-600'}`} />
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-responsive-xs font-medium text-gray-900">{video.title}</p>
-                        <p className="text-xs text-gray-500">{video.duration} min • {video.subject}</p>
-                        {video.isYouTubeVideo && (
-                          <span className="text-xs text-red-600">YouTube</span>
-                        )}
-                      </div>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className={`${index % 2 === 0 ? 'text-purple-600 border-purple-200' : 'text-orange-600 border-orange-200'}`}
-                      onClick={() => handleWatchVideo(video)}
-                    >
-                      Watch
+                <div className="text-center py-4">
+                  <Award className="w-12 h-12 text-purple-600 mx-auto mb-2" />
+                  <p className="text-sm text-gray-700 font-medium mb-2">Exclusive Study Materials</p>
+                  <p className="text-xs text-gray-600 mb-4">
+                    Premium content created by Super Admin for your board
+                  </p>
+                  <Link to="/asli-prep-content">
+                    <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">
+                      Explore Asli Learn Exclusive
                     </Button>
-                  </div>
-                ))}
-                {videos.length === 0 && (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 text-responsive-xs">No videos available</p>
-                  </div>
-                )}
-              </div>
-              <div className="mt-4">
-                <Link to="/video-lectures">
-                  <Button variant="outline" className="w-full">
-                    View All Videos
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Assessments Section */}
-          <Card className="hover:shadow-lg transition-shadow duration-200">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-gray-900">Assessments</CardTitle>
-                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                  {assessments.length}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {assessments.map((assessment, index) => (
-                  <div key={assessment._id || assessment.id} className={`flex items-center justify-between p-3 ${index % 2 === 0 ? 'bg-red-50' : 'bg-indigo-50'} rounded-lg`}>
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 ${index % 2 === 0 ? 'bg-red-100' : 'bg-indigo-100'} rounded-full flex items-center justify-center`}>
-                        <Target className={`w-4 h-4 ${index % 2 === 0 ? 'text-red-600' : 'text-indigo-600'}`} />
-                      </div>
-                      <div>
-                        <p className="text-responsive-xs font-medium text-gray-900">{assessment.title}</p>
-                        <p className="text-xs text-gray-500">{assessment.duration} min • {assessment.totalPoints} points</p>
-                        {assessment.isDriveQuiz && (
-                          <span className="text-xs text-blue-600">Google Drive</span>
-                        )}
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" className={`${index % 2 === 0 ? 'text-red-600 border-red-200' : 'text-indigo-600 border-indigo-200'}`}>
-                      Take
-                    </Button>
-                  </div>
-                ))}
-                {assessmentsLoading ? (
-                  <div className="text-center py-4">
-                    <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                    <p className="text-gray-500 text-responsive-xs">Loading assessments...</p>
-                  </div>
-                ) : assessments.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 text-responsive-xs">No assessments available</p>
-                    <p className="text-xs text-gray-400 mt-1">Debug: {assessments.length} assessments loaded</p>
-                  </div>
-                ) : null}
-              </div>
-              <div className="mt-4">
-                <Link to="/student-exams">
-                  <Button variant="outline" className="w-full">
-                    View All Assessments
-                  </Button>
-                </Link>
+                  </Link>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -463,7 +432,7 @@ export default function Dashboard() {
 
                 {/* Subject Progress */}
                 <div className="space-y-4">
-                  {subjectProgress.map((subject) => (
+                  {subjectProgress.length > 0 ? subjectProgress.map((subject) => (
                     <div key={subject.id} className="subject-progress-card">
                       <div className="flex items-center space-x-3">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${subject.color}`}>
@@ -486,60 +455,19 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-center py-4 text-gray-500">
+                      Complete exams to see your subject-wise progress
+                    </div>
+                  )}
                 </div>
 
-                <Button className="w-full gradient-primary text-white">
+                <Button 
+                  className="w-full gradient-primary text-white"
+                  onClick={() => setLocation('/learning-paths')}
+                >
                   View Complete Learning Path
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Smart Video Lectures */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Recommended Video Lectures</CardTitle>
-                  <Link href="/videos">
-                    <Button variant="ghost" size="sm">View All</Button>
-                  </Link>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {recommendedVideos.slice(0, 2).map((video: any) => (
-                    <div key={video.id} className="video-thumbnail group">
-                      <img 
-                        src={video.thumbnailUrl || "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=450"} 
-                        alt={video.title}
-                        className="w-full h-32 object-cover rounded-lg" 
-                      />
-                      <div className="video-overlay">
-                        <div className="play-button">
-                          <Play className="w-6 h-6 text-primary ml-1" fill="currentColor" />
-                        </div>
-                      </div>
-                      <div className="absolute bottom-2 left-2 right-2">
-                        <p className="text-white text-responsive-xs font-medium">{video.title}</p>
-                        <p className="text-white/80 text-xs">
-                          {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')} • {video.subjectId}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-100">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Zap className="w-4 h-4 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="text-responsive-xs font-medium text-gray-900">AI-Enhanced Features</h4>
-                      <p className="text-responsive-xs text-gray-600 mt-1">Auto-generated notes, visual memory maps, and voice Q&A available for all lectures</p>
-                    </div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
 
@@ -554,57 +482,50 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* JEE Main Practice Test */}
-                <div className="test-card">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 gradient-accent rounded-lg flex items-center justify-center">
-                        <FileText className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900">JEE Main Practice Test</h3>
-                        <p className="text-responsive-xs text-gray-600">
-                          90 Questions • 3 Hours • Maths, Physics, Chemistry
-                        </p>
-                        <div className="flex items-center space-x-4 mt-1">
-                          <Badge className="text-xs bg-blue-100 text-blue-700">MAINS</Badge>
-                          <span className="text-xs text-gray-500">+4/-1 Marking</span>
+                {isLoadingDashboard ? (
+                  <div className="text-center py-4">Loading exams...</div>
+                ) : availableTests.length > 0 ? (
+                  <>
+                    {availableTests.map((exam: any) => (
+                      <div key={exam._id} className="test-card">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 gradient-accent rounded-lg flex items-center justify-center">
+                              <FileText className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-gray-900">{exam.title || exam.name || 'Exam'}</h3>
+                              <p className="text-responsive-xs text-gray-600">
+                                {exam.totalQuestions || 0} Questions • {exam.duration ? `${Math.floor(exam.duration / 60)} Hours` : 'N/A'} • {exam.examType || 'Practice Test'}
+                              </p>
+                              <div className="flex items-center space-x-4 mt-1">
+                                <Badge className={`text-xs ${
+                                  exam.examType === 'mains' ? 'bg-blue-100 text-blue-700' :
+                                  exam.examType === 'advanced' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {(exam.examType || 'PRACTICE').toUpperCase()}
+                                </Badge>
+                                {exam.totalMarks && (
+                                  <span className="text-xs text-gray-500">{exam.totalMarks} Marks</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <Link href="/student-exams">
+                            <Button className="bg-primary text-white hover:bg-primary/90">
+                              Start Test
+                            </Button>
+                          </Link>
                         </div>
                       </div>
-                    </div>
-                    <Link href="/student-exams">
-                      <Button className="bg-primary text-white hover:bg-primary/90">
-                        Start Test
-                      </Button>
-                    </Link>
+                    ))}
+                  </>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    No exams available. Check back later!
                   </div>
-                </div>
-
-                {/* JEE Advanced Practice Test */}
-                <div className="test-card">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 gradient-accent rounded-lg flex items-center justify-center">
-                        <FileText className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900">JEE Advanced Practice Test</h3>
-                        <p className="text-responsive-xs text-gray-600">
-                          54 Questions • 3 Hours • Maths, Physics, Chemistry
-                        </p>
-                        <div className="flex items-center space-x-4 mt-1">
-                          <Badge className="text-xs bg-purple-100 text-purple-700">ADVANCED</Badge>
-                          <span className="text-xs text-gray-500">+3/-1 Marking</span>
-                        </div>
-                      </div>
-                    </div>
-                    <Link href="/student-exams">
-                      <Button className="bg-primary text-white hover:bg-primary/90">
-                        Start Test
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
+                )}
 
                 {/* Daily Quiz */}
                 <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg border border-orange-100">
@@ -615,10 +536,13 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <h4 className="font-medium text-gray-900">Daily Quick Quiz</h4>
-                        <p className="text-responsive-xs text-gray-600">5 Questions • Earn 50 XP • Current Streak: {stats.streak} days</p>
+                        <p className="text-responsive-xs text-gray-600">5 Questions • Earn 50 XP</p>
                       </div>
                     </div>
-                    <Button className="gradient-accent text-white">
+                    <Button 
+                      className="gradient-accent text-white"
+                      onClick={() => setLocation('/student-exams')}
+                    >
                       Start Quiz
                     </Button>
                   </div>
@@ -641,8 +565,11 @@ export default function Dashboard() {
 
             {/* Performance Dashboard */}
             <ProgressChart 
-              subjects={subjectProgress}
-              overallProgress={68}
+              subjects={subjectProgress.length > 0 ? subjectProgress : []}
+              overallProgress={subjectProgress.length > 0 
+                ? Math.round(subjectProgress.reduce((sum, s) => sum + s.progress, 0) / subjectProgress.length)
+                : 0
+              }
             />
 
             {/* Quick Actions */}
@@ -652,28 +579,40 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-3">
-                  <button className="quick-action-button">
+                  <button 
+                    className="quick-action-button"
+                    onClick={() => setLocation('/learning-paths')}
+                  >
                     <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mb-2">
                       <TrendingUp className="w-4 h-4 text-red-600" />
                     </div>
                     <p className="text-responsive-xs font-medium text-gray-900">Practice Weak Topics</p>
                   </button>
 
-                  <button className="quick-action-button">
+                  <button 
+                    className="quick-action-button"
+                    onClick={() => alert('Schedule Study feature coming soon!')}
+                  >
                     <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mb-2">
                       <Calendar className="w-4 h-4 text-blue-600" />
                     </div>
                     <p className="text-responsive-xs font-medium text-gray-900">Schedule Study</p>
                   </button>
 
-                  <button className="quick-action-button">
+                  <button 
+                    className="quick-action-button"
+                    onClick={() => setLocation('/asli-prep-content')}
+                  >
                     <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mb-2">
                       <Download className="w-4 h-4 text-green-600" />
                     </div>
                     <p className="text-responsive-xs font-medium text-gray-900">Download Notes</p>
                   </button>
 
-                  <button className="quick-action-button">
+                  <button 
+                    className="quick-action-button"
+                    onClick={() => alert('Study Groups feature coming soon!')}
+                  >
                     <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mb-2">
                       <Users className="w-4 h-4 text-purple-600" />
                     </div>
@@ -689,16 +628,6 @@ export default function Dashboard() {
                 <CardTitle>Recent Achievements</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <div className="achievement-card">
-                  <div className="w-8 h-8 gradient-accent rounded-full flex items-center justify-center">
-                    <Star className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-responsive-xs font-medium text-gray-900">Study Streak Master</p>
-                    <p className="text-xs text-gray-600">{stats.streak} days continuous learning</p>
-                  </div>
-                </div>
-
                 <div className="achievement-card">
                   <div className="w-8 h-8 gradient-accent rounded-full flex items-center justify-center">
                     <Award className="w-4 h-4 text-white" />

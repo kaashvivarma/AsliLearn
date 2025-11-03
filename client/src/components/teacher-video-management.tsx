@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   Plus, 
   Edit, 
@@ -76,7 +77,7 @@ const TeacherVideoManagement = () => {
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/subjects', {
+      const response = await fetch('${API_BASE_URL}/api/teacher/subjects', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -94,7 +95,7 @@ const TeacherVideoManagement = () => {
   const fetchVideos = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/videos', {
+      const response = await fetch('${API_BASE_URL}/api/teacher/videos', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

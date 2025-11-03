@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { API_BASE_URL } from "@/lib/api-config";
 import { 
   BrainIcon, 
   TrendingUpIcon, 
@@ -92,7 +93,7 @@ export default function AIAnalyticsDashboard() {
       const token = localStorage.getItem('authToken');
       
       // Call our backend AI service
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/ai/analytics', {
+      const response = await fetch('${API_BASE_URL}/api/ai/analytics', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

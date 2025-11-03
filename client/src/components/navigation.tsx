@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, MessageCircle, User, Menu, Bell, LogOut, Sparkles } from "lucide-react";
+import { BookOpen, FileText, MessageCircle, User, Menu, Bell, LogOut, Sparkles } from "lucide-react";
+import { API_BASE_URL } from '@/lib/api-config';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -14,7 +15,7 @@ export default function Navigation() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/logout', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
@@ -36,7 +37,6 @@ export default function Navigation() {
 
   const navItems = [
     { path: "/learning-paths", label: "Learning Paths", icon: BookOpen },
-    { path: "/videos", label: "Video Lectures", icon: Video },
     { path: "/student-exams", label: "Weekend Exams", icon: FileText },
     { path: "/ai-tutor", label: "AI Tutor", icon: MessageCircle },
   ];

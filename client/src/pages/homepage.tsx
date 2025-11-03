@@ -1,130 +1,68 @@
-"use client"
-
-import { useEffect, useRef, useState } from 'react';
-import { motion, useInView, useAnimation, useScroll, useTransform } from 'framer-motion';
+import { } from 'react';
+import { motion, useScroll } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import ShaderBackground from '@/components/ShaderBackground';
 import { 
   Play, 
   Brain, 
   Trophy, 
   Users, 
   Star, 
-  ArrowRight, 
   Target,
   BarChart3,
   Shield,
-  Sparkles,
-  Rocket,
   TrendingUp,
-  Heart,
-  Eye,
-  User,
   Video,
   Crown,
-  Info,
-  Home
+  User
 } from 'lucide-react';
 import { Link } from 'wouter';
 
 // Professional Header Component
 const ProfessionalHeader = () => {
   return (
-    <header className="relative z-20 flex items-center p-6">
-      {/* Logo */}
-      <div className="flex items-center">
-        <div className="flex items-center space-x-4">
-          <img 
-            src="/logo.jpg" 
-            alt="Asli Stud Logo" 
-            className="w-16 h-16 object-contain"
-          />
-          <span className="text-blue-600 font-bold text-2xl">Asli Stud</span>
+    <header className="relative z-20 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 shadow-lg">
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <img 
+              src="/logo.jpg" 
+              alt="Asli Stud Logo" 
+              className="w-12 h-12 object-contain rounded-lg"
+            />
+            <span className="text-white font-semibold text-xl">Asli Stud</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Link href="/auth/login">
+              <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-gray-800 flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Profile
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </header>
   );
 };
 
-// Bottom Right Corner Navigation with Icons
+// Professional Bottom Navigation (simplified)
 const BottomRightNav = () => {
   return (
     <motion.div 
-      className="fixed bottom-6 right-6 z-50 flex flex-col space-y-3"
-      initial={{ opacity: 0, x: 50 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.6, delay: 0.3 }}
+      className="fixed bottom-6 right-6 z-50"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
     >
-      {/* Sign In Button */}
-      <Link href="/auth/login">
-        <motion.button
-          className="group relative w-14 h-14 bg-blue-200/80 backdrop-blur-sm border border-blue-300 rounded-full flex items-center justify-center text-blue-700 hover:bg-blue-300/80 transition-all duration-300 shadow-lg"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <User className="w-6 h-6" />
-          <motion.div
-            className="absolute -left-20 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white text-sm px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap"
-            initial={{ opacity: 0, x: 10 }}
-            whileHover={{ opacity: 1, x: 0 }}
-          >
-            Sign In
-          </motion.div>
-        </motion.button>
-      </Link>
-
-      {/* Features Button */}
-      <motion.button
-        className="group relative w-14 h-14 bg-cyan-200/80 backdrop-blur-sm border border-cyan-300 rounded-full flex items-center justify-center text-cyan-700 hover:bg-cyan-300/80 transition-all duration-300 shadow-lg"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-      >
-        <Sparkles className="w-6 h-6" />
-        <motion.div
-          className="absolute -left-20 top-1/2 transform -translate-y-1/2 bg-cyan-600 text-white text-sm px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap"
-          initial={{ opacity: 0, x: 10 }}
-          whileHover={{ opacity: 1, x: 0 }}
-        >
-          Features
-        </motion.div>
-      </motion.button>
-
-      {/* About Button */}
-      <motion.button
-        className="group relative w-14 h-14 bg-teal-200/80 backdrop-blur-sm border border-teal-300 rounded-full flex items-center justify-center text-teal-700 hover:bg-teal-300/80 transition-all duration-300 shadow-lg"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
-      >
-        <Info className="w-6 h-6" />
-        <motion.div
-          className="absolute -left-20 top-1/2 transform -translate-y-1/2 bg-teal-600 text-white text-sm px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap"
-          initial={{ opacity: 0, x: 10 }}
-          whileHover={{ opacity: 1, x: 0 }}
-        >
-          About
-        </motion.div>
-      </motion.button>
-
-      {/* Home Button */}
-      <motion.button
-        className="group relative w-14 h-14 bg-emerald-200/80 backdrop-blur-sm border border-emerald-300 rounded-full flex items-center justify-center text-emerald-700 hover:bg-emerald-300/80 transition-all duration-300 shadow-lg"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
+      <Button
+        variant="outline"
+        className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 shadow-lg"
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       >
-        <Home className="w-6 h-6" />
-        <motion.div
-          className="absolute -left-20 top-1/2 transform -translate-y-1/2 bg-emerald-600 text-white text-sm px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap"
-          initial={{ opacity: 0, x: 10 }}
-          whileHover={{ opacity: 1, x: 0 }}
-        >
-          Home
-        </motion.div>
-      </motion.button>
+        Back to Top
+      </Button>
     </motion.div>
   );
 };
@@ -132,36 +70,31 @@ const BottomRightNav = () => {
 // Professional Hero Content
 const ProfessionalHeroContent = () => {
   return (
-    <main className="absolute inset-0 flex items-center justify-center z-20">
-      <div className="text-center max-w-4xl mx-auto px-8">
-        <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-200 to-cyan-200 backdrop-blur-sm mb-6 shadow-lg">
-          <span className="text-blue-800 text-sm font-medium">✨ Asli Stud Learning Experience</span>
-        </div>
+    <main className="max-w-7xl mx-auto px-6 py-20 lg:py-32">
+      <div className="text-center max-w-4xl mx-auto">
+        <Badge className="mb-6 bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/30 backdrop-blur-sm">
+          Enterprise Learning Solutions
+        </Badge>
 
         {/* Main Heading */}
-        <h1 className="text-responsive-3xl tracking-tight font-light text-slate-gray-800 mb-responsive">
-          <span className="font-bold italic text-indigo-blue-700">Intelligent</span> Learning
+        <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+          Intelligent Learning
           <br />
-          <span className="font-light tracking-tight text-teal-green-700">Platform</span>
+          <span className="text-blue-400">Platform</span>
         </h1>
 
         {/* Description */}
-        <p className="text-responsive-base font-light text-slate-gray-700 mb-responsive leading-relaxed max-w-2xl mx-auto px-responsive">
-          Transform your education with our advanced AI technology. Personalized learning paths, 
+        <p className="text-xl text-gray-300 mb-10 leading-relaxed max-w-2xl mx-auto">
+          Transform your education with advanced AI technology. Personalized learning paths, 
           interactive content, and intelligent assessments that adapt to your unique learning style.
         </p>
 
         {/* Buttons */}
-        <div className="flex-responsive-col items-center justify-center gap-responsive">
-          <Link href="/auth/register">
-            <button className="w-full sm:w-auto px-responsive py-responsive rounded-responsive bg-gradient-to-r from-indigo-blue-500 via-teal-green-500 via-amber-gold-500 to-slate-gray-500 text-white font-medium text-responsive-base transition-all duration-200 hover:from-indigo-blue-600 hover:via-teal-green-600 hover:via-amber-gold-600 hover:to-slate-gray-600 cursor-pointer shadow-responsive hover:shadow-xl">
-              Get Started
-            </button>
-          </Link>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link href="/auth/login">
-            <button className="w-full sm:w-auto px-responsive py-responsive rounded-responsive bg-white text-blue-600 font-medium text-responsive-base transition-all duration-200 hover:bg-blue-50 cursor-pointer border-responsive border-blue-300 hover:border-blue-400 shadow-responsive">
+            <Button size="lg" variant="outline" className="border-2 border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white px-8 py-6 text-lg">
               Sign In
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
@@ -169,95 +102,10 @@ const ProfessionalHeroContent = () => {
   );
 };
 
-// Professional Pulsing Circle
-const ProfessionalPulsingCircle = () => {
-  return (
-    <div className="absolute bottom-8 right-8 z-30">
-      <div className="relative w-20 h-20 flex items-center justify-center">
-        {/* Pulsing Border Circle */}
-        <motion.div
-          className="w-16 h-16 rounded-full border-2 border-blue-300"
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.8, 0.3],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-
-        {/* Rotating Text Around the Pulsing Border */}
-        <motion.svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 100 100"
-          animate={{ rotate: 360 }}
-          transition={{
-            duration: 20,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "linear",
-          }}
-          style={{ transform: "scale(1.6)" }}
-        >
-          <defs>
-            <path id="circle" d="M 50, 50 m -38, 0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
-          </defs>
-          <text className="text-sm fill-blue-600">
-            <textPath href="#circle" startOffset="0%">
-              Asli Stud is amazing • Asli Stud is amazing • Asli Stud is amazing •
-            </textPath>
-          </text>
-        </motion.svg>
-      </div>
-    </div>
-  );
-};
 
 
 const Homepage = () => {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true });
-  const controls = useAnimation();
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = useState(false);
   const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 1], [0, -50]);
-
-  useEffect(() => {
-    if (isInView) {
-      controls.start('visible');
-    }
-  }, [isInView, controls]);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 60 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.6, ease: "easeOut" }
-    }
-  };
-
-  const staggerChildren = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
-  };
 
   const features = [
     {
@@ -311,145 +159,97 @@ const Homepage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-gray-100 via-indigo-blue-100 via-teal-green-100 to-amber-gold-100">
+    <div className="min-h-screen bg-gray-900">
       <ProfessionalHeader />
       <BottomRightNav />
       
       {/* Scroll Progress Indicator */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-blue-500 via-teal-green-500 via-amber-gold-500 to-slate-gray-500 z-50 origin-left"
+        className="fixed top-0 left-0 right-0 h-1 bg-blue-500 z-50 origin-left"
         style={{ scaleX: scrollYProgress }}
       />
-      
+
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-blue-200 via-teal-green-200 via-amber-gold-200 to-slate-gray-200">
+      <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
         <ProfessionalHeroContent />
-        <ProfessionalPulsingCircle />
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-responsive bg-gradient-to-br from-teal-green-100 via-amber-gold-100 via-indigo-blue-100 to-slate-gray-100">
-        <div className="container-responsive">
+      <section id="features" className="py-20 bg-gray-800">
+        <div className="max-w-7xl mx-auto px-6">
           <motion.div 
-            className="text-center mb-responsive"
+            className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-responsive-2xl font-bold text-slate-gray-800 mb-responsive">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
               Why Choose Asli Stud?
             </h2>
-            <p className="text-responsive-lg text-slate-gray-700 max-w-3xl mx-auto px-responsive">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Experience the future of education with our AI-powered platform designed 
               to maximize your learning potential and exam success.
             </p>
           </motion.div>
 
-          <motion.div 
-            className="grid-responsive-4 gap-responsive"
-            variants={staggerChildren}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
               <motion.div
                 key={index}
-                variants={fadeInUp}
-                whileHover={{ 
-                  y: -10,
-                  scale: 1.02,
-                  transition: { duration: 0.3 }
-                }}
-                className="group"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
               >
-                <Card className="h-full hover:shadow-2xl transition-all duration-500 border-0 bg-white/80 backdrop-blur-sm group-hover:bg-white/90 shadow-lg">
-                  <CardHeader className="text-center relative overflow-hidden">
-                    <motion.div 
-                      className="w-16 h-16 bg-gradient-to-r from-teal-green-500 via-amber-gold-500 via-indigo-blue-500 to-slate-gray-500 rounded-full flex items-center justify-center mx-auto mb-4 relative shadow-lg"
-                      whileHover={{ 
-                        rotate: 360,
-                        scale: 1.1
-                      }}
-                      transition={{ duration: 0.6 }}
-                    >
-                      <feature.icon className="w-8 h-8 text-white" />
-                    </motion.div>
-                    
-                    <CardTitle className="text-xl font-bold text-slate-gray-800 group-hover:text-slate-gray-600 transition-colors duration-300">
+                <Card className="h-full border border-gray-700 bg-gray-900 hover:bg-gray-800 hover:shadow-xl transition-all duration-300">
+                  <CardHeader className="text-center">
+                    <div className="w-14 h-14 bg-blue-600/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                      <feature.icon className="w-7 h-7 text-blue-400" />
+                    </div>
+                    <CardTitle className="text-lg font-semibold text-white">
                       {feature.title}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <motion.p 
-                      className="text-slate-gray-700 text-center group-hover:text-slate-gray-600 transition-colors duration-300"
-                      whileHover={{ scale: 1.02 }}
-                    >
+                    <p className="text-gray-300 text-center text-sm leading-relaxed">
                       {feature.description}
-                    </motion.p>
+                    </p>
                   </CardContent>
                 </Card>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-gradient-to-br from-amber-gold-100 via-slate-gray-100 via-indigo-blue-100 to-teal-green-100 backdrop-blur-sm relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div 
-            className="grid grid-cols-2 md:grid-cols-4 gap-8"
-            variants={staggerChildren}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
+      <section id="stats" className="py-20 bg-gray-900 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <motion.div
+              <div
                 key={index}
-                variants={fadeInUp}
-                className="text-center group cursor-pointer"
-                whileHover={{ 
-                  scale: 1.05,
-                  transition: { duration: 0.2 }
-                }}
-                onHoverStart={() => setIsHovering(true)}
-                onHoverEnd={() => setIsHovering(false)}
+                className="text-center"
               >
-                <motion.div 
-                  className="relative mb-4"
-                  whileHover={{ rotate: 360 }}
-                  transition={{ duration: 0.6 }}
-                >
-                  <div className={`w-16 h-16 mx-auto rounded-full bg-gradient-to-r ${stat.color} flex items-center justify-center shadow-lg`}>
-                    <stat.icon className="w-8 h-8 text-white" />
+                <div className="w-14 h-14 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-4 border border-gray-700">
+                  <stat.icon className="w-7 h-7 text-blue-400" />
                   </div>
-                </motion.div>
-                
-                <motion.div 
-                  className="text-4xl md:text-5xl font-bold text-slate-gray-800 mb-2"
-                  whileHover={{ scale: 1.1 }}
-                >
+                <div className="text-4xl md:text-5xl font-bold text-white mb-2">
                   {stat.number}
-                </motion.div>
-                
-                <motion.div 
-                  className="text-slate-gray-700 font-medium"
-                  whileHover={{ color: "#334155" }}
-                >
+                </div>
+                <div className="text-gray-400 font-medium text-sm">
                   {stat.label}
-                </motion.div>
-              </motion.div>
+                </div>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-black/30 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="testimonials" className="py-20 bg-gray-800">
+        <div className="max-w-7xl mx-auto px-6">
           <motion.div 
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -457,53 +257,48 @@ const Homepage = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
               What Our Students Say
             </h2>
-            <p className="text-xl text-white/70 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Join thousands of successful students who have transformed their learning journey with Asli Stud.
             </p>
           </motion.div>
 
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-3 gap-8"
-            variants={staggerChildren}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
               <motion.div
                 key={index}
-                variants={fadeInUp}
-                whileHover={{ y: -5 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
               >
-                <Card className="h-full bg-white/10 backdrop-blur-sm border-0 hover:bg-white/20 transition-all duration-300">
+                <Card className="h-full bg-gray-900 border border-gray-700 hover:bg-gray-800 hover:shadow-xl transition-all duration-300">
                   <CardContent className="p-6">
                     <div className="flex items-center mb-4">
                       {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 text-blue-400 fill-current" />
+                        <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
                       ))}
                     </div>
-                    <p className="text-white/80 mb-4 italic">
+                    <p className="text-gray-300 mb-4 italic leading-relaxed">
                       "{testimonial.content}"
                     </p>
                     <div>
                       <div className="font-semibold text-white">{testimonial.name}</div>
-                      <div className="text-white/60 text-sm">{testimonial.role}</div>
+                      <div className="text-gray-400 text-sm">{testimonial.role}</div>
                     </div>
                   </CardContent>
                 </Card>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-20 bg-white/5 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="about" className="py-20 bg-gray-900 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-6">
           <motion.div 
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -511,184 +306,103 @@ const Homepage = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-gray-800 mb-6">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
               About Asli Stud
             </h2>
-            <p className="text-xl text-slate-gray-700 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               We're revolutionizing education with cutting-edge AI technology, making learning personalized, 
               engaging, and effective for students worldwide.
             </p>
           </motion.div>
 
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-            variants={staggerChildren}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            <motion.div
-              variants={fadeInUp}
-              className="text-center group"
-            >
-              <Card className="h-full bg-white/10 backdrop-blur-sm border-0 hover:bg-white/20 transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Brain className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-gray-800 mb-3">AI-Powered</h3>
-                  <p className="text-slate-gray-700">
-                    Advanced artificial intelligence that adapts to your learning style and pace.
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              variants={fadeInUp}
-              className="text-center group"
-            >
-              <Card className="h-full bg-white/10 backdrop-blur-sm border-0 hover:bg-white/20 transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Users className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-gray-800 mb-3">Community</h3>
-                  <p className="text-slate-gray-700">
-                    Join thousands of students in a supportive learning community.
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              variants={fadeInUp}
-              className="text-center group"
-            >
-              <Card className="h-full bg-white/10 backdrop-blur-sm border-0 hover:bg-white/20 transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Trophy className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-gray-800 mb-3">Results</h3>
-                  <p className="text-slate-gray-700">
-                    Proven track record with 95% success rate and improved learning outcomes.
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { icon: Brain, title: "AI-Powered", description: "Advanced artificial intelligence that adapts to your learning style and pace." },
+              { icon: Users, title: "Community", description: "Join thousands of students in a supportive learning community." },
+              { icon: Trophy, title: "Results", description: "Proven track record with 95% success rate and improved learning outcomes." }
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="text-center"
+              >
+                <Card className="h-full bg-gray-800 border border-gray-700 hover:bg-gray-750 hover:shadow-lg transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="w-14 h-14 bg-blue-600/20 rounded-lg flex items-center justify-center mx-auto mb-4 border border-gray-700">
+                      <item.icon className="w-7 h-7 text-blue-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">{item.title}</h3>
+                    <p className="text-gray-300 text-sm leading-relaxed">
+                      {item.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-indigo-blue-800/80 via-teal-green-800/80 via-amber-gold-800/80 to-slate-gray-800/80 text-white relative overflow-hidden">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8 relative z-10">
+      <section id="cta" className="py-20 bg-blue-600 text-white">
+        <div className="max-w-4xl mx-auto text-center px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <motion.div
-              className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium mb-6"
-              whileHover={{ scale: 1.05 }}
-            >
-              <Rocket className="w-4 h-4" />
-              <span>Join the Learning Revolution</span>
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              >
-                <Sparkles className="w-4 h-4" />
-              </motion.div>
-            </motion.div>
+            <Badge className="mb-6 bg-blue-500 text-white border-blue-400">
+              Join the Learning Revolution
+            </Badge>
             
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
               Ready to Transform Your Learning?
             </h2>
-            <p className="text-xl text-white/80 mb-8">
+            <p className="text-xl text-blue-100 mb-8">
               Join thousands of students who are already experiencing the future of education.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Link href="/auth/register">
-                  <Button size="lg" className="bg-white text-black hover:bg-white/90 px-8 py-4 text-lg shadow-2xl">
-                    <motion.div
-                      className="flex items-center"
-                      whileHover={{ x: 5 }}
-                    >
-                      Get Started Free
-                      <ArrowRight className="ml-2 w-5 h-5" />
-                    </motion.div>
-                  </Button>
-                </Link>
-              </motion.div>
-              
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
                 <Link href="/auth/login">
-                  <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white/10 px-8 py-4 text-lg backdrop-blur-sm">
-                    <motion.div
-                      className="flex items-center"
-                      whileHover={{ x: 5 }}
-                    >
+                <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white/10 px-8 py-6 text-lg">
                       Sign In
-                      <Eye className="ml-2 w-5 h-5" />
-                    </motion.div>
                   </Button>
                 </Link>
-              </motion.div>
             </div>
             
             {/* Super Admin Access */}
-            <div className="mt-8 text-center">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.7 }}
-              >
+            <div className="mt-8">
                 <Link href="/super-admin/login">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="border-blue-300 text-blue-200 hover:bg-blue-500/20 hover:text-blue-100 backdrop-blur-sm"
+                  className="border-blue-400 text-blue-100 hover:bg-blue-500/20"
                   >
                     <Crown className="w-4 h-4 mr-2" />
                     Super Admin Access
                   </Button>
                 </Link>
-              </motion.div>
             </div>
             
             {/* Trust indicators */}
-            <motion.div
-              className="mt-12 flex flex-wrap items-center justify-center gap-8 text-white/70"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.5 }}
-            >
+            <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-blue-100 text-sm">
               <div className="flex items-center space-x-2">
                 <Shield className="w-5 h-5" />
-                <span className="text-sm">Secure & Private</span>
+                <span>Secure & Private</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Heart className="w-5 h-5" />
-                <span className="text-sm">Loved by 50K+ Students</span>
+                <Users className="w-5 h-5" />
+                <span>Loved by 50K+ Students</span>
               </div>
               <div className="flex items-center space-x-2">
                 <TrendingUp className="w-5 h-5" />
-                <span className="text-sm">95% Success Rate</span>
+                <span>95% Success Rate</span>
               </div>
-            </motion.div>
+            </div>
           </motion.div>
         </div>
       </section>

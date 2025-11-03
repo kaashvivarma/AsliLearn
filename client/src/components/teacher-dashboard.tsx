@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   BookOpen, 
   Plus, 
@@ -176,7 +177,7 @@ const TeacherDashboard = () => {
       }
       
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/me', {
+      const response = await fetch('${API_BASE_URL}/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -218,7 +219,7 @@ const TeacherDashboard = () => {
   const fetchQuizzes = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/quizzes', {
+      const response = await fetch('${API_BASE_URL}/api/teacher/quizzes', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -241,7 +242,7 @@ const TeacherDashboard = () => {
   const fetchVideos = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/videos', {
+      const response = await fetch('${API_BASE_URL}/api/teacher/videos', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -264,7 +265,7 @@ const TeacherDashboard = () => {
   const fetchAssessments = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/assessments', {
+      const response = await fetch('${API_BASE_URL}/api/teacher/assessments', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -287,7 +288,7 @@ const TeacherDashboard = () => {
   const handleLogout = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      await fetch('https://asli-stud-back-production.up.railway.app/api/auth/logout', {
+      await fetch('${API_BASE_URL}/api/auth/logout', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -306,7 +307,7 @@ const TeacherDashboard = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/quizzes', {
+      const response = await fetch('${API_BASE_URL}/api/teacher/quizzes', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -343,7 +344,7 @@ const TeacherDashboard = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/videos', {
+      const response = await fetch('${API_BASE_URL}/api/teacher/videos', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -411,7 +412,7 @@ const TeacherDashboard = () => {
   const handleCreateAssessment = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/teacher/assessments', {
+      const response = await fetch('${API_BASE_URL}/api/teacher/assessments', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

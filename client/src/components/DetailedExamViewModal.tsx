@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { X, ChevronLeft, ChevronRight, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 interface Question {
-  id: number;
-  question: string;
-  options: string[];
-  correctAnswer: string;
-  userAnswer: string;
+  id?: number;
+  _id?: string;
+  question?: string;
+  questionText?: string;
+  questionType?: 'mcq' | 'multiple' | 'integer';
+  options?: string[] | Array<{ text: string; _id?: string }>;
+  correctAnswer: string | string[];
+  userAnswer: string | string[];
   explanation?: string;
 }
 
@@ -25,11 +28,49 @@ export default function DetailedExamViewModal({
 }: DetailedExamViewModalProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
+  // Helper function to extract text from option objects
+  const getOptionText = (option: any): string => {
+    if (option === null || option === undefined) return '';
+    if (typeof option === 'string') return option;
+    if (typeof option === 'number') return String(option);
+    if (typeof option === 'object' && option !== null) {
+      if (option.text !== undefined) return String(option.text);
+      if (option.label !== undefined) return String(option.label);
+      if (option.value !== undefined) return String(option.value);
+      if (option._id !== undefined) return String(option._id);
+      if (Array.isArray(option)) return option.map(getOptionText).join(', ');
+      return JSON.stringify(option);
+    }
+    return String(option);
+  };
+
+  // Helper function to check if user answer matches correct answer
+  const compareAnswers = (userAnswer: any, correctAnswer: any): boolean => {
+    if (!userAnswer) return false;
+    
+    const userText = getOptionText(userAnswer);
+    const correctText = getOptionText(correctAnswer);
+    
+    if (Array.isArray(correctAnswer) && Array.isArray(userAnswer)) {
+      const userTexts = userAnswer.map(getOptionText).sort();
+      const correctTexts = correctAnswer.map(getOptionText).sort();
+      return JSON.stringify(userTexts) === JSON.stringify(correctTexts);
+    }
+    
+    return userText === correctText;
+  };
+
   if (!isOpen) return null;
 
   const currentQuestion = questions[currentQuestionIndex];
-  const isCorrect = currentQuestion.userAnswer === currentQuestion.correctAnswer;
-  const isAttempted = currentQuestion.userAnswer && currentQuestion.userAnswer.trim() !== '';
+  const questionText = currentQuestion.questionText || currentQuestion.question || '';
+  const questionOptions = currentQuestion.options || [];
+  const correctAnswer = currentQuestion.correctAnswer;
+  const userAnswer = currentQuestion.userAnswer;
+  
+  const isCorrect = compareAnswers(userAnswer, correctAnswer);
+  const isAttempted = userAnswer !== undefined && userAnswer !== null && 
+                      (Array.isArray(userAnswer) ? userAnswer.length > 0 : String(userAnswer).trim() !== '');
 
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
@@ -78,16 +119,25 @@ export default function DetailedExamViewModal({
           {/* Question text */}
           <div className="mb-6">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">
-              {currentQuestion.question}
+              {questionText}
             </h3>
           </div>
 
           {/* Options */}
           <div className="space-y-3 mb-6">
-            {currentQuestion.options.map((option, index) => {
+            {questionOptions.map((option, index) => {
               const optionLetter = getOptionLetter(index);
-              const isUserAnswer = option === currentQuestion.userAnswer;
-              const isCorrectAnswer = option === currentQuestion.correctAnswer;
+              const optionText = getOptionText(option);
+              
+              // Check if this option is in user's answer (handles both single and multiple)
+              const isUserAnswer = Array.isArray(userAnswer) 
+                ? userAnswer.some(a => getOptionText(a) === optionText)
+                : getOptionText(userAnswer) === optionText;
+              
+              // Check if this option is correct (handles both single and multiple)
+              const isCorrectAnswer = Array.isArray(correctAnswer)
+                ? correctAnswer.some(a => getOptionText(a) === optionText)
+                : getOptionText(correctAnswer) === optionText;
               
               let optionStyle = "border-2 border-gray-200 bg-white";
               let textStyle = "text-gray-700";
@@ -124,7 +174,7 @@ export default function DetailedExamViewModal({
                       }`}>
                         {optionLetter}
                       </div>
-                      <span className={textStyle}>{option}</span>
+                      <span className={textStyle}>{optionText}</span>
                     </div>
                     {icon}
                   </div>
@@ -143,7 +193,11 @@ export default function DetailedExamViewModal({
               </h4>
               <div className="text-blue-700">
                 {isAttempted ? (
-                  <span className="font-medium">{currentQuestion.userAnswer}</span>
+                  <span className="font-medium">
+                    {Array.isArray(userAnswer) 
+                      ? userAnswer.map(getOptionText).join(', ')
+                      : getOptionText(userAnswer)}
+                  </span>
                 ) : (
                   <span className="italic text-gray-500 flex items-center">
                     <AlertCircle className="w-4 h-4 mr-2" />
@@ -160,7 +214,9 @@ export default function DetailedExamViewModal({
                 Correct Answer
               </h4>
               <div className="text-green-700 font-medium">
-                {currentQuestion.correctAnswer}
+                {Array.isArray(correctAnswer) 
+                  ? correctAnswer.map(getOptionText).join(', ')
+                  : getOptionText(correctAnswer)}
               </div>
             </div>
           </div>
@@ -225,6 +281,7 @@ export default function DetailedExamViewModal({
     </div>
   );
 }
+
 
 
 

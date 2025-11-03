@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Mail, Lock, ArrowLeft, Sparkles } from 'lucide-react';
 import { Link } from 'wouter';
+import { API_BASE_URL } from '@/lib/api-config';
 
 const Login = () => {
   const [, setLocation] = useLocation();
@@ -41,14 +42,14 @@ const Login = () => {
     try {
       // Test backend connection first
       console.log('Testing backend connection...');
-      const healthCheck = await fetch('https://asli-stud-back-production.up.railway.app/api/health');
+      const healthCheck = await fetch(`${API_BASE_URL}/api/health`);
       if (!healthCheck.ok) {
         throw new Error('Backend server is not running. Please check the server status.');
       }
       console.log('Backend server is running');
 
       // Use direct backend URL for production
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +106,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-white flex items-center justify-center p-4 relative overflow-hidden">
       <AnimatePresence mode="wait">
         {showVideo && (
           <motion.div
@@ -125,7 +126,7 @@ const Login = () => {
               <source src="/logovideo.mp4" type="video/mp4" />
             </video>
             {/* Video overlay for better branding */}
-            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+            <div className="absolute inset-0 bg-white/30 flex items-center justify-center">
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}

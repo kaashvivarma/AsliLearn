@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   Users, 
   Plus, 
@@ -92,7 +93,7 @@ const TeacherManagement = () => {
   const fetchTeachers = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/teachers', {
+      const response = await fetch('${API_BASE_URL}/api/admin/teachers', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -191,7 +192,7 @@ const TeacherManagement = () => {
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/subjects', {
+      const response = await fetch('${API_BASE_URL}/api/admin/subjects', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -238,7 +239,7 @@ const TeacherManagement = () => {
   const fetchClasses = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/classes', {
+      const response = await fetch('${API_BASE_URL}/api/admin/classes', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -285,7 +286,7 @@ const TeacherManagement = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/teachers', {
+      const response = await fetch('${API_BASE_URL}/api/admin/teachers', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -320,7 +321,7 @@ const TeacherManagement = () => {
         return;
       }
 
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/teachers/${editingTeacher.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/teachers/${editingTeacher.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -353,7 +354,7 @@ const TeacherManagement = () => {
           return;
         }
 
-        const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/teachers/${teacherId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/teachers/${teacherId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -389,7 +390,7 @@ const TeacherManagement = () => {
         return;
       }
 
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/teachers/${teacherId}/assign-classes`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/teachers/${teacherId}/assign-classes`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -457,7 +458,7 @@ const TeacherManagement = () => {
         return;
       }
 
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/teachers/${teacherId}/assign-subjects`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/teachers/${teacherId}/assign-subjects`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -501,7 +502,7 @@ const TeacherManagement = () => {
           await delay(600); // give backend time to persist
           try {
             const token2 = localStorage.getItem('authToken');
-            const resp2 = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/teachers', {
+            const resp2 = await fetch('${API_BASE_URL}/api/admin/teachers', {
               headers: {
                 'Authorization': `Bearer ${token2}`,
                 'Content-Type': 'application/json'

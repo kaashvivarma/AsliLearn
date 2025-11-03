@@ -7,7 +7,6 @@ import NotFound from "@/pages/not-found";
 import Homepage from "./pages/homepage";
 import Dashboard from "./pages/dashboard";
 import LearningPaths from "./pages/learning-paths";
-import VideoLectures from "./pages/video-lectures";
 import PracticeTests from "./pages/practice-tests";
 import AITutor from "./pages/ai-tutor";
 import Profile from "./pages/profile";
@@ -17,6 +16,7 @@ import AdminDashboard from "./pages/admin/dashboard";
 import SubjectManagement from "./pages/admin/subject-management";
 import TeacherDashboard from "./pages/teacher/dashboard";
 import StudentExams from "./pages/student-exams";
+import AsliPrepContentPage from "./pages/asli-prep-content";
 import SubjectContent from "./pages/subject-content";
 import SuperAdminLogin from "./pages/super-admin-login";
 import SuperAdminDashboard from "./pages/super-admin-dashboard";
@@ -29,9 +29,9 @@ function Router() {
       <Route path="/" component={Homepage} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/learning-paths" component={LearningPaths} />
-      <Route path="/videos" component={VideoLectures} />
       <Route path="/tests" component={PracticeTests} />
       <Route path="/student-exams" component={StudentExams} />
+      <Route path="/asli-prep-content" component={AsliPrepContentPage} />
       <Route path="/subject/:id" component={SubjectContent} />
       <Route path="/ai-tutor" component={AITutor} />
       <Route path="/profile" component={Profile} />

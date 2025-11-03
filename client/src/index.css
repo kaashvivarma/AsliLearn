@@ -87,9 +87,13 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-white text-foreground;
     /* Set Figtree as the default font family for the entire website */
     font-family: var(--font-figtree);
+  }
+  
+  html {
+    @apply bg-white;
   }
 }
 

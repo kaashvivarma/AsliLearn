@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   Plus, 
   Edit, 
@@ -76,7 +77,7 @@ const VideoManagement = () => {
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/subjects', {
+      const response = await fetch('${API_BASE_URL}/api/subjects', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -94,7 +95,7 @@ const VideoManagement = () => {
   const fetchVideos = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/videos', {
+      const response = await fetch('${API_BASE_URL}/api/admin/videos', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -118,7 +119,7 @@ const VideoManagement = () => {
   const handleCreateVideo = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/videos', {
+      const response = await fetch('${API_BASE_URL}/api/admin/videos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,7 +151,7 @@ const VideoManagement = () => {
   const handleEditVideo = async (video: Video) => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/videos/${video.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/videos/${video.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -173,7 +174,7 @@ const VideoManagement = () => {
     if (confirm('Are you sure you want to delete this video?')) {
       try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/videos/${videoId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/videos/${videoId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -192,7 +193,7 @@ const VideoManagement = () => {
   const toggleVideoStatus = async (video: Video) => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/videos/${video.id}/toggle`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/videos/${video.id}/toggle`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/lib/constants';
+import { API_BASE_URL } from '@/lib/api-config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -274,6 +274,12 @@ export default function AnimatedExam({ examId, onComplete, onExit }: AnimatedExa
     };
 
     try {
+      console.log('📤 Saving exam result:', {
+        examId: result.examId,
+        examTitle: result.examTitle,
+        percentage: result.percentage
+      });
+      
       const response = await fetch(`${API_BASE_URL}/api/student/exam-results`, {
         method: 'POST',
         headers: { 
@@ -286,7 +292,7 @@ export default function AnimatedExam({ examId, onComplete, onExit }: AnimatedExa
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Exam result submission failed:', {
+        console.error('❌ Exam result submission failed:', {
           status: response.status,
           statusText: response.statusText,
           error: errorData
@@ -295,12 +301,16 @@ export default function AnimatedExam({ examId, onComplete, onExit }: AnimatedExa
       }
 
       const responseData = await response.json();
-      console.log('Exam result saved successfully:', responseData);
+      console.log('✅ Exam result saved successfully:', responseData);
+      console.log('📋 Saved examId:', responseData.data?.examId || result.examId);
     } catch (error) {
-      console.error('Failed to save result:', error);
+      console.error('❌ Failed to save result:', error);
       // Don't prevent exam completion even if saving fails
+      // But alert the user
+      alert('Warning: Exam result may not have been saved. Please check your connection and try again.');
     }
 
+    // Call onComplete after saving (this will trigger UI refresh)
     onComplete(result);
   };
 

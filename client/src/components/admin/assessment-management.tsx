@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   Plus, 
   Edit, 
@@ -83,7 +84,7 @@ const AssessmentManagement = () => {
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/subjects', {
+      const response = await fetch('${API_BASE_URL}/api/subjects', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -101,7 +102,7 @@ const AssessmentManagement = () => {
   const fetchAssessments = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/assessments', {
+      const response = await fetch('${API_BASE_URL}/api/admin/assessments', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -124,7 +125,7 @@ const AssessmentManagement = () => {
   const handleCreateAssessment = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/assessments', {
+      const response = await fetch('${API_BASE_URL}/api/admin/assessments', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

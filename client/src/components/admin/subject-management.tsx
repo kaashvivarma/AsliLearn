@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   BookOpen, 
   Plus, 
@@ -70,7 +71,7 @@ const SubjectManagement = () => {
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/subjects', {
+      const response = await fetch('${API_BASE_URL}/api/admin/subjects', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -126,7 +127,7 @@ const SubjectManagement = () => {
   const fetchTeachers = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/teachers', {
+      const response = await fetch('${API_BASE_URL}/api/admin/teachers', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -154,7 +155,7 @@ const SubjectManagement = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/subjects', {
+      const response = await fetch('${API_BASE_URL}/api/admin/subjects', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -183,7 +184,7 @@ const SubjectManagement = () => {
     if (!editingSubject) return;
 
     try {
-      const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/subjects/${editingSubject.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/subjects/${editingSubject.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -210,7 +211,7 @@ const SubjectManagement = () => {
   const handleDeleteSubject = async (subjectId: string, subjectName: string) => {
     if (window.confirm(`Are you sure you want to delete ${subjectName}? This action cannot be undone.`)) {
       try {
-        const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/subjects/${subjectId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/subjects/${subjectId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`

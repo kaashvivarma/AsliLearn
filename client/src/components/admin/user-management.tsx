@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   Users, 
   Plus, 
@@ -29,7 +30,6 @@ import {
   BookOpen,
   TrendingUp
 } from 'lucide-react';
-
 interface Student {
   id: string;
   name: string;
@@ -64,7 +64,7 @@ const UserManagement = () => {
   const fetchStudents = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -128,7 +128,7 @@ const UserManagement = () => {
     e.preventDefault();
     try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/users', {
+        const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -169,7 +169,7 @@ const UserManagement = () => {
     
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/users/upload', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -209,7 +209,7 @@ const UserManagement = () => {
   const handleDeleteStudent = async (studentId: string, studentName: string) => {
     if (window.confirm(`Are you sure you want to delete ${studentName}? This action cannot be undone.`)) {
       try {
-        const response = await fetch(`https://asli-stud-back-production.up.railway.app/api/admin/users/${studentId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/users/${studentId}`, {
           method: 'DELETE',
           headers: { 
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
@@ -231,10 +231,11 @@ const UserManagement = () => {
     }
   };
 
+
   const handleDeleteAllStudents = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/users/delete-all', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/delete-all`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -704,6 +705,7 @@ const UserManagement = () => {
                 </div>
               </DialogContent>
             </Dialog>
+
           </div>
         </div>
         </motion.div>
@@ -802,7 +804,7 @@ const UserManagement = () => {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="text-sky-600 hover:text-green-700 hover:bg-green-100/50 rounded-lg backdrop-blur-sm"
+                          className="text-sky-600 hover:text-blue-700 hover:bg-blue-100/50 rounded-lg backdrop-blur-sm"
                         >
                         <Edit className="w-4 h-4" />
                       </Button>

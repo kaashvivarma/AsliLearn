@@ -18,11 +18,13 @@ import {
   FileText,
   BarChart3,
   Video,
-  BookOpen as BookIcon
+  BookOpen as BookIcon,
+  User
 } from "lucide-react";
 import { Link } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/lib/api-config";
 
 export default function LearningPaths() {
   const isMobile = useIsMobile();
@@ -47,7 +49,7 @@ export default function LearningPaths() {
           return;
         }
 
-        const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -100,9 +102,9 @@ export default function LearningPaths() {
       try {
         setIsLoadingSubjects(true);
         
-        // Fetch subjects
+        // Fetch subjects from student endpoint (gets board-specific subjects)
         const token = localStorage.getItem('authToken');
-        const subjectsResponse = await fetch('https://asli-stud-back-production.up.railway.app/api/subjects', {
+        const subjectsResponse = await fetch(`${API_BASE_URL}/api/student/subjects`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -113,53 +115,84 @@ export default function LearningPaths() {
           const contentType = subjectsResponse.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
             const subjectsData = await subjectsResponse.json();
-            console.log('Fetched subjects:', subjectsData);
             
-            // Fetch content for each subject
-            const subjectsWithContent = await Promise.all(
-              subjectsData.subjects.map(async (subject: any) => {
+            console.log('📥 API Response:', subjectsData);
+            
+            // Handle all possible response formats
+            let subjectsArray = [];
+            
+            if (subjectsData.subjects && Array.isArray(subjectsData.subjects)) {
+              subjectsArray = subjectsData.subjects;
+            } else if (subjectsData.data && Array.isArray(subjectsData.data)) {
+              subjectsArray = subjectsData.data;
+            } else if (Array.isArray(subjectsData)) {
+              subjectsArray = subjectsData;
+            } else if (subjectsData.success && subjectsData.subjects && Array.isArray(subjectsData.subjects)) {
+              subjectsArray = subjectsData.subjects;
+            } else if (subjectsData.success && subjectsData.data && Array.isArray(subjectsData.data)) {
+              subjectsArray = subjectsData.data;
+            }
+            
+            console.log(`📚 Extracted ${subjectsArray.length} subjects`);
+            if (subjectsArray.length > 0) {
+              console.log('First subject:', {
+                name: subjectsArray[0].name,
+                teachers: subjectsArray[0].teachers,
+                teacherCount: subjectsArray[0].teacherCount
+              });
+            }
+            
+            if (!Array.isArray(subjectsArray) || subjectsArray.length === 0) {
+              setSubjects([]);
+              setIsLoadingSubjects(false);
+              return;
+            }
+            
+            // Fetch content for each subject - use Promise.allSettled to ensure all subjects are included
+            const subjectsWithContentResults = await Promise.allSettled(
+              subjectsArray.map(async (subject: any) => {
                 try {
                   const subjectId = subject._id || subject.id || subject.name;
-                  console.log(`Fetching content for subject: ${subject.name} (ID: ${subjectId})`);
                   
                   // Fetch videos for this subject (from teacher-created content)
-                  const videosResponse = await fetch(`https://asli-stud-back-production.up.railway.app/api/student/videos?subject=${encodeURIComponent(subjectId)}`, {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-                      'Content-Type': 'application/json',
-                    }
-                  });
-                  
                   let videos = [];
-                  if (videosResponse.ok) {
-                    const videosData = await videosResponse.json();
-                    console.log(`Videos response for ${subject.name}:`, videosData);
-                    videos = videosData.data || videosData.videos || videosData || [];
-                    if (!Array.isArray(videos)) videos = [];
-                  } else {
-                    console.error(`Failed to fetch videos for ${subject.name}:`, videosResponse.status);
+                  try {
+                    const videosResponse = await fetch(`${API_BASE_URL}/api/student/videos?subject=${encodeURIComponent(subjectId)}`, {
+                      headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                        'Content-Type': 'application/json',
+                      }
+                    });
+                    
+                    if (videosResponse.ok) {
+                      const videosData = await videosResponse.json();
+                      videos = videosData.data || videosData.videos || videosData || [];
+                      if (!Array.isArray(videos)) videos = [];
+                    }
+                  } catch (videoError) {
+                    videos = [];
                   }
 
                   // Fetch assessments/quizzes for this subject (from teacher-created content)
-                  const assessmentsResponse = await fetch(`https://asli-stud-back-production.up.railway.app/api/student/assessments?subject=${encodeURIComponent(subjectId)}`, {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-                      'Content-Type': 'application/json',
-                    }
-                  });
-                  
                   let assessments = [];
-                  if (assessmentsResponse.ok) {
-                    const assessmentsData = await assessmentsResponse.json();
-                    console.log(`Assessments response for ${subject.name}:`, assessmentsData);
-                    assessments = assessmentsData.data || assessmentsData.assessments || assessmentsData.quizzes || assessmentsData || [];
-                    if (!Array.isArray(assessments)) assessments = [];
-                  } else {
-                    console.error(`Failed to fetch assessments for ${subject.name}:`, assessmentsResponse.status);
+                  try {
+                    const assessmentsResponse = await fetch(`${API_BASE_URL}/api/student/assessments?subject=${encodeURIComponent(subjectId)}`, {
+                      headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                        'Content-Type': 'application/json',
+                      }
+                    });
+                    
+                    if (assessmentsResponse.ok) {
+                      const assessmentsData = await assessmentsResponse.json();
+                      assessments = assessmentsData.data || assessmentsData.assessments || assessmentsData.quizzes || assessmentsData || [];
+                      if (!Array.isArray(assessments)) assessments = [];
+                    }
+                  } catch (assessmentError) {
+                    assessments = [];
                   }
 
                   const totalContent = videos.length + assessments.length;
-                  console.log(`Subject ${subject.name}: ${videos.length} videos, ${assessments.length} assessments, ${totalContent} total`);
 
                   return {
                     ...subject,
@@ -169,7 +202,6 @@ export default function LearningPaths() {
                     totalContent: totalContent
                   };
                 } catch (error) {
-                  console.error(`Failed to fetch content for subject ${subject.name}:`, error);
                   return {
                     ...subject,
                     videos: [],
@@ -181,9 +213,34 @@ export default function LearningPaths() {
               })
             );
             
-            setSubjects(subjectsWithContent);
+            // Extract all subjects (both fulfilled and rejected)
+            const subjectsWithContent = subjectsWithContentResults.map((result, index) => {
+              if (result.status === 'fulfilled') {
+                return result.value;
+              } else {
+                const subject = subjectsArray[index];
+                return {
+                  ...subject,
+                  videos: [],
+                  quizzes: [],
+                  assessments: [],
+                  totalContent: 0
+                };
+              }
+            });
+            
+            // Filter out any undefined/null subjects and ensure unique
+            const validSubjects = subjectsWithContent.filter((s: any) => s && (s.name || s._id || s.id));
+            const uniqueSubjects = validSubjects.filter((subject, index, self) => {
+              const subjectId = subject._id || subject.id;
+              return index === self.findIndex((s: any) => (s._id || s.id) === subjectId);
+            });
+            
+            setSubjects(uniqueSubjects);
           } else {
-            console.warn('Subjects response is not JSON, using fallback data');
+            console.warn('⚠️ Subjects response is not JSON');
+            console.warn('Response status:', subjectsResponse.status);
+            console.warn('Response headers:', Object.fromEntries(subjectsResponse.headers.entries()));
             // Fallback subjects data
             setSubjects([
               {
@@ -267,7 +324,16 @@ export default function LearningPaths() {
           ]);
         }
       } catch (error) {
-        console.error('Failed to fetch subjects:', error);
+        console.error('❌ ERROR fetching subjects:', error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+        
+        // Try to show subjects even if there's an error - maybe API is down but cache works?
+        console.log('Attempting fallback...');
+        
         // Fallback subjects data
         setSubjects([
           {
@@ -323,7 +389,7 @@ export default function LearningPaths() {
     const fetchLearningPaths = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch('https://asli-stud-back-production.up.railway.app/api/subjects', {
+        const response = await fetch(`${API_BASE_URL}/api/student/subjects`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -331,7 +397,7 @@ export default function LearningPaths() {
         });
         const data = await response.json();
         if (data.success) {
-          setLearningPaths(data.subjects);
+          setLearningPaths(data.subjects || data.data || []);
         }
       } catch (error) {
         console.error('Error fetching learning paths:', error);
@@ -482,7 +548,7 @@ export default function LearningPaths() {
                 <p className="text-gray-500">Check back later for new learning content.</p>
               </div>
             ) : (
-              subjects.map((subject) => {
+              subjects.map((subject: any) => {
                 const getSubjectIcon = (subjectName: string) => {
                   if (subjectName.toLowerCase().includes('math')) return Target;
                   if (subjectName.toLowerCase().includes('science')) return Zap;
@@ -491,6 +557,13 @@ export default function LearningPaths() {
                 };
                 
                 const Icon = getSubjectIcon(subject.name);
+                const assignedTeachers = subject.teachers || [];
+                
+                console.log(`Rendering subject "${subject.name}":`, {
+                  hasTeachers: assignedTeachers.length > 0,
+                  teacherCount: assignedTeachers.length,
+                  teachers: assignedTeachers
+                });
                 
                 return (
                   <Card key={subject._id || subject.id} className="hover:shadow-lg transition-all duration-200 hover:scale-105">
@@ -500,13 +573,43 @@ export default function LearningPaths() {
                           <Icon className="w-6 h-6 text-white" />
                         </div>
                         <Badge variant="secondary" className="text-xs">
-                          {subject.totalContent} items
+                          {subject.totalContent || 0} items
                         </Badge>
                       </div>
                       <CardTitle className="text-lg">{subject.name}</CardTitle>
                       <p className="text-gray-600 text-sm">{subject.description || `Learn ${subject.name} with videos, quizzes, and assessments`}</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {/* Teacher Information */}
+                      {assignedTeachers.length > 0 ? (
+                        <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                          <p className="text-xs font-semibold text-purple-700 mb-2 flex items-center">
+                            <Users className="w-3 h-3 mr-1" />
+                            Assigned Teachers ({assignedTeachers.length})
+                          </p>
+                          <div className="space-y-2">
+                            {assignedTeachers.map((teacher: any, idx: number) => (
+                              <div key={teacher._id || idx} className="bg-white rounded p-2 border border-purple-100">
+                                <p className="text-sm font-medium text-purple-900">{teacher.name || 'Unknown Teacher'}</p>
+                                {teacher.email && (
+                                  <p className="text-xs text-purple-600 mt-0.5">{teacher.email}</p>
+                                )}
+                                {teacher.department && (
+                                  <p className="text-xs text-purple-500 mt-0.5">Dept: {teacher.department}</p>
+                                )}
+                                {teacher.qualifications && (
+                                  <p className="text-xs text-purple-500 mt-0.5">{teacher.qualifications}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                          <p className="text-xs text-gray-500">No teacher assigned yet</p>
+                        </div>
+                      )}
+
                       {/* Content Stats */}
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="bg-blue-50 rounded-lg p-2">

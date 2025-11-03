@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Crown, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api-config";
 
 export default function SuperAdminLogin() {
   const [email, setEmail] = useState("Amenity@gmail.com");
@@ -19,7 +20,7 @@ export default function SuperAdminLogin() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

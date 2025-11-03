@@ -13,6 +13,7 @@ import {
   AwardIcon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/lib/api-config";
 
 export default function SuperAdminAnalyticsDashboard() {
   const { toast } = useToast();
@@ -26,7 +27,7 @@ export default function SuperAdminAnalyticsDashboard() {
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/super-admin/admins', {
+      const response = await fetch('${API_BASE_URL}/api/super-admin/admins', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

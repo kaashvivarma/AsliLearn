@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { API_BASE_URL } from '@/lib/api-config';
 import { 
   GraduationCap, 
   Plus, 
@@ -56,7 +57,7 @@ const ClassManagement = () => {
   const fetchClasses = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/classes', {
+      const response = await fetch('${API_BASE_URL}/api/admin/classes', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -105,7 +106,7 @@ const ClassManagement = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('https://asli-stud-back-production.up.railway.app/api/admin/classes', {
+      const response = await fetch('${API_BASE_URL}/api/admin/classes', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
