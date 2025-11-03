@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { SuperAdminSidebar, type SuperAdminView } from "@/components/dashboard/SuperAdminSidebar";
 import AdminManagement from "@/components/admin/AdminManagement";
 import SuperAdminAnalyticsDashboard from "./super-admin-analytics";
-import AIAnalyticsDashboard from "./ai-analytics-dashboard";
 import DetailedAIAnalyticsDashboard from "./detailed-ai-analytics";
 import BoardComparisonCharts from "@/components/admin/board-comparison-charts";
 import ContentManagement from "@/components/super-admin/content-management";
@@ -39,6 +38,7 @@ export default function SuperAdminDashboard() {
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
   const [boardData, setBoardData] = useState<any>(null);
   const [isLoadingBoard, setIsLoadingBoard] = useState(false);
+  const [adminSummary, setAdminSummary] = useState<any[]>([]);
 
   // Fetch real dashboard stats
   useEffect(() => {
@@ -77,6 +77,7 @@ export default function SuperAdminDashboard() {
 
     fetchDashboardStats();
     fetchRealtimeAnalytics();
+    fetchAdminSummary();
   }, [toast]);
 
   const fetchRealtimeAnalytics = async () => {
@@ -100,6 +101,29 @@ export default function SuperAdminDashboard() {
       console.error('Error fetching real-time analytics:', error);
     } finally {
       setIsLoadingAnalytics(false);
+    }
+  };
+
+  const fetchAdminSummary = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/super-admin/admins`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          setAdminSummary(data.data);
+        } else if (Array.isArray(data)) {
+          setAdminSummary(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching admin summary:', error);
     }
   };
 
@@ -272,11 +296,11 @@ export default function SuperAdminDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-300">Total Users</p>
+                <p className="text-sm font-medium text-slate-300">Total Students</p>
                 <p className="text-3xl font-bold text-white">
-                  {isLoadingStats ? '...' : stats.totalUsers.toLocaleString()}
+                  {isLoadingStats ? '...' : stats.totalStudents.toLocaleString()}
                 </p>
-                <p className="text-sm text-slate-400">Real-time data</p>
+                <p className="text-sm text-slate-400">All students across all admins</p>
               </div>
               <UsersIcon className="h-12 w-12 text-blue-400" />
             </div>
@@ -285,7 +309,7 @@ export default function SuperAdminDashboard() {
                 onClick={() => setCurrentView('admins')} 
                 className="text-sm text-blue-400 hover:text-blue-300 flex items-center transition-colors"
               >
-                Click to manage admins <ArrowUpRightIcon className="ml-1 h-4 w-4" />
+                View students by admin <ArrowUpRightIcon className="ml-1 h-4 w-4" />
               </button>
             </div>
           </CardContent>
@@ -414,71 +438,36 @@ export default function SuperAdminDashboard() {
         </Card>
       </div>
 
-      {/* AI Insights & Recommendations */}
-      <div className="space-y-6">
-        <div className="flex items-center space-x-2">
-          <StarIcon className="h-5 w-5 text-yellow-500" />
-          <h2 className="text-xl font-bold text-gray-900">AI Insights & Recommendations</h2>
+      {/* Students per Admin Summary */}
+      {adminSummary.length > 0 && (
+        <div className="space-y-4">
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-sm text-green-600">AI Analysis Active</span>
+            <UsersIcon className="h-5 w-5 text-blue-500" />
+            <h2 className="text-xl font-bold text-gray-900">Students per Admin</h2>
+            <Badge className="bg-blue-100 text-blue-700">
+              Total: {adminSummary.reduce((sum, admin) => sum + (admin.totalStudents || 0), 0)} students
+            </Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {adminSummary.map((admin) => (
+              <Card key={admin.id || admin._id} className="border-l-4 border-l-blue-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">{admin.name || admin.fullName}</h3>
+                      <p className="text-sm text-gray-600">{admin.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-blue-600">{admin.totalStudents || 0}</p>
+                      <p className="text-xs text-gray-500">students</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-gradient-to-br from-purple-600 to-purple-700 border-purple-500 shadow-xl">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-purple-200">Next Month Revenue (AI Predicted)</p>
-                  <p className="text-2xl font-bold text-white">₹289,450</p>
-                  <p className="text-sm text-green-300">+18.2% growth</p>
-                </div>
-                <TrendingUpIcon className="h-8 w-8 text-purple-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 border-blue-400 shadow-xl">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-200">Predicted New Students</p>
-                  <p className="text-2xl font-bold text-white">89</p>
-                  <p className="text-sm text-blue-200">Next 30 days</p>
-                </div>
-                <UsersIcon className="h-8 w-8 text-blue-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 border-orange-400 shadow-xl">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-orange-200">Students at Churn Risk</p>
-                  <p className="text-2xl font-bold text-white">12</p>
-                  <p className="text-sm text-orange-200">Needs attention</p>
-                </div>
-                <AlertTriangleIcon className="h-8 w-8 text-orange-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 border-green-400 shadow-xl">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-200">AI Engagement Score</p>
-                  <p className="text-2xl font-bold text-white">92%</p>
-                  <p className="text-sm text-green-200">Excellent</p>
-                </div>
-                <ZapIcon className="h-8 w-8 text-green-200" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      )}
 
       {/* AI-Powered Recommendations */}
       <div className="space-y-4">
@@ -524,7 +513,7 @@ export default function SuperAdminDashboard() {
               <Card className="bg-gradient-to-br from-blue-50 to-blue-100">
                 <CardContent className="p-4">
                   <p className="text-sm text-blue-700 font-medium">Total Students</p>
-                  <p className="text-2xl font-bold text-blue-900">{realtimeAnalytics.overallMetrics?.totalStudents || 0}</p>
+                  <p className="text-2xl font-bold text-blue-900">{stats.totalStudents || realtimeAnalytics.overallMetrics?.totalStudents || 0}</p>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-green-50 to-green-100">
@@ -999,8 +988,6 @@ export default function SuperAdminDashboard() {
       case 'board-comparison':
         return renderBoardComparisonContent();
       case 'ai-analytics':
-        return <AIAnalyticsDashboard />;
-      case 'detailed-analytics':
         return <DetailedAIAnalyticsDashboard />;
       case 'subscriptions':
         return renderSubscriptionsContent();

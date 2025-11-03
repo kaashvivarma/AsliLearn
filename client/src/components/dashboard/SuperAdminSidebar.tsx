@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export type SuperAdminView = 'dashboard' | 'admins' | 'analytics' | 'ai-analytics' | 'detailed-analytics' | 'subscriptions' | 'settings' | 'board-comparison' | 'content' | 'board' | 'subjects' | 'exams';
+export type SuperAdminView = 'dashboard' | 'admins' | 'analytics' | 'ai-analytics' | 'subscriptions' | 'settings' | 'board-comparison' | 'content' | 'board' | 'subjects' | 'exams';
 
 interface SuperAdminSidebarProps {
   currentView: SuperAdminView;
@@ -32,7 +32,6 @@ export function SuperAdminSidebar({ currentView, onViewChange, user }: SuperAdmi
     { id: 'analytics', label: 'Analytics', icon: BarChartIcon },
     { id: 'board-comparison', label: 'Board Comparison', icon: BarChartIcon },
     { id: 'ai-analytics', label: 'AI Analytics', icon: BrainCircuitIcon },
-    { id: 'detailed-analytics', label: 'Detailed Analytics', icon: BarChartIcon },
     { id: 'subscriptions', label: 'Subscriptions', icon: CreditCardIcon },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
