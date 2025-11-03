@@ -155,7 +155,7 @@ export default function DetailedAIAnalyticsDashboard() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('${API_BASE_URL}/api/ai/detailed-analytics', {
+      const response = await fetch(`${API_BASE_URL}/api/ai/detailed-analytics`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

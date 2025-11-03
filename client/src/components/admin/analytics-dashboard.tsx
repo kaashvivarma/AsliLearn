@@ -79,7 +79,7 @@ const AnalyticsDashboard = () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('authToken');
-      const response = await fetch('${API_BASE_URL}/api/admin/analytics', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/analytics`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

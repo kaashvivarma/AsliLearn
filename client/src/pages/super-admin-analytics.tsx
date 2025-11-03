@@ -27,7 +27,7 @@ export default function SuperAdminAnalyticsDashboard() {
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('${API_BASE_URL}/api/super-admin/admins', {
+      const response = await fetch(`${API_BASE_URL}/api/super-admin/admins`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

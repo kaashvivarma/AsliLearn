@@ -93,7 +93,7 @@ export default function AIAnalyticsDashboard() {
       const token = localStorage.getItem('authToken');
       
       // Call our backend AI service
-      const response = await fetch('${API_BASE_URL}/api/ai/analytics', {
+      const response = await fetch(`${API_BASE_URL}/api/ai/analytics`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
