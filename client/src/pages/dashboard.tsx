@@ -271,7 +271,7 @@ export default function Dashboard() {
     return (
       <>
         <Navigation />
-        <div className="container-responsive py-responsive">
+        <div className="w-full px-2 sm:px-4 lg:px-6 py-responsive">
           <div className="space-responsive">
             <Skeleton className="h-48 w-full rounded-responsive" />
             <div className="grid-responsive-4 gap-responsive">
@@ -291,7 +291,7 @@ export default function Dashboard() {
   return (
     <>
       <Navigation />
-      <div className={`container-responsive pt-responsive pb-responsive bg-gray-50 min-h-screen ${isMobile ? 'pb-20' : ''}`}>
+      <div className={`w-full px-2 sm:px-4 lg:px-6 pt-responsive pb-responsive bg-gray-50 min-h-screen ${isMobile ? 'pb-20' : ''}`}>
         
         {/* Welcome Section */}
         <div className="mb-responsive">
@@ -301,7 +301,7 @@ export default function Dashboard() {
                 Welcome back, {user?.email || 'Student'}!
               </h1>
               <p className="text-blue-100 mb-responsive text-responsive-sm">
-                Ready to continue your {user?.educationStream || 'JEE'} preparation journey? Your AI tutor has personalized recommendations waiting.
+                Ready to continue your {user?.educationStream || 'JEE'} preparation journey? Your Vidya Tutor has personalized recommendations waiting.
               </p>
               
               <div className="flex-responsive-col gap-responsive">
@@ -316,7 +316,7 @@ export default function Dashboard() {
                   className="border-white/30 bg-white/10 text-white hover:bg-white/20 w-full sm:w-auto"
                   onClick={() => setLocation('/ai-tutor')}
                 >
-                  Ask AI Tutor
+                  Ask Vidya Tutor
                 </Button>
               </div>
             </div>
@@ -471,11 +471,11 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Weekend Exams */}
+            {/* Exams */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Weekend Exams & JEE Tests</CardTitle>
+                  <CardTitle>Exams</CardTitle>
                   <Link href="/student-exams">
                     <Button variant="ghost" size="sm">View All</Button>
                   </Link>
@@ -551,7 +551,7 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Right Column: AI Tutor & Performance */}
+          {/* Right Column: Vidya Tutor & Performance */}
           <div className="space-y-6">
             
             {/* AI Chat */}

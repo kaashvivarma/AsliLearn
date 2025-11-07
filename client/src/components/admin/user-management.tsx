@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { API_BASE_URL } from '@/lib/api-config';
 import { 
@@ -47,6 +48,8 @@ const UserManagement = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
   const [deleteAllConfirmStep, setDeleteAllConfirmStep] = useState(1);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -263,11 +266,21 @@ const UserManagement = () => {
     setIsDeleteAllDialogOpen(false);
   };
 
-  const filteredStudents = students.filter(student =>
-    (student.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (student.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (student.classNumber || '').includes(searchTerm)
-  );
+  // Get all unique classes from students
+  const allClasses = Array.from(new Set(students.map(s => s.classNumber).filter(c => c && c !== 'N/A'))).sort();
+
+  const filteredStudents = students.filter(student => {
+    // Search filter
+    const matchesSearch = 
+      (student.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.classNumber || '').includes(searchTerm);
+    
+    // Class filter
+    const matchesClass = selectedClassFilter === 'all' || student.classNumber === selectedClassFilter;
+    
+    return matchesSearch && matchesClass;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
@@ -409,13 +422,70 @@ const UserManagement = () => {
                 />
               </div>
               <div className="flex items-center gap-3">
-                <Button 
-                  size="lg" 
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl px-6 shadow-lg"
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  Advanced Filter
-                </Button>
+                <Dialog open={isAdvancedFilterOpen} onOpenChange={setIsAdvancedFilterOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      size="lg" 
+                      className={`bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl px-6 shadow-lg ${selectedClassFilter !== 'all' ? 'ring-2 ring-blue-300 ring-offset-2' : ''}`}
+                    >
+                      <Filter className="w-4 h-4 mr-2" />
+                      Advanced Filter
+                      {selectedClassFilter !== 'all' && (
+                        <Badge variant="secondary" className="ml-2 bg-white/20 text-white border-white/30">
+                          {selectedClassFilter}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md bg-white/80 border-blue-200 backdrop-blur-xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-semibold text-blue-900">Advanced Filter</DialogTitle>
+                      <DialogDescription className="text-blue-700">
+                        Filter students by class
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4">
+                      <div>
+                        <Label htmlFor="classFilter" className="text-sm font-medium text-blue-800 mb-2 block">
+                          Select Class
+                        </Label>
+                        <Select value={selectedClassFilter} onValueChange={setSelectedClassFilter}>
+                          <SelectTrigger id="classFilter" className="w-full">
+                            <SelectValue placeholder="Select a class" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Classes</SelectItem>
+                            {allClasses.map((classNum) => (
+                              <SelectItem key={classNum} value={classNum}>
+                                {classNum}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {allClasses.length === 0 && (
+                          <p className="text-xs text-gray-500 mt-2">No classes found in the database</p>
+                        )}
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedClassFilter('all');
+                            setIsAdvancedFilterOpen(false);
+                          }}
+                        >
+                          Reset
+                        </Button>
+                        <Button
+                          onClick={() => setIsAdvancedFilterOpen(false)}
+                          className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
+                        >
+                          Apply Filter
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <Button 
                   size="lg" 
                   className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl px-6 shadow-lg"

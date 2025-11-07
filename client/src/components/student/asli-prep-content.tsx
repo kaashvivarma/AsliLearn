@@ -12,7 +12,7 @@ interface Content {
   _id: string;
   title: string;
   description?: string;
-  type: 'video' | 'pdf' | 'ppt' | 'note' | 'other';
+  type: 'TextBook' | 'Workbook' | 'Material' | 'Video' | 'Audio';
   subject: {
     _id: string;
     name: string;
@@ -113,20 +113,22 @@ export default function AsliPrepContent() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'video': return <Video className="h-5 w-5" />;
-      case 'pdf': return <FileText className="h-5 w-5" />;
-      case 'ppt': return <File className="h-5 w-5" />;
-      case 'note': return <BookOpen className="h-5 w-5" />;
+      case 'Video': return <Video className="h-5 w-5" />;
+      case 'TextBook': return <BookOpen className="h-5 w-5" />;
+      case 'Workbook': return <FileText className="h-5 w-5" />;
+      case 'Material': return <File className="h-5 w-5" />;
+      case 'Audio': return <File className="h-5 w-5" />;
       default: return <File className="h-5 w-5" />;
     }
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'video': return 'bg-red-100 text-red-700';
-      case 'pdf': return 'bg-blue-100 text-blue-700';
-      case 'ppt': return 'bg-orange-100 text-orange-700';
-      case 'note': return 'bg-green-100 text-green-700';
+      case 'Video': return 'bg-red-100 text-red-700';
+      case 'TextBook': return 'bg-blue-100 text-blue-700';
+      case 'Workbook': return 'bg-purple-100 text-purple-700';
+      case 'Material': return 'bg-green-100 text-green-700';
+      case 'Audio': return 'bg-yellow-100 text-yellow-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -211,10 +213,11 @@ export default function AsliPrepContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="pdf">PDF</SelectItem>
-                  <SelectItem value="ppt">PPT</SelectItem>
-                  <SelectItem value="note">Note</SelectItem>
+                  <SelectItem value="TextBook">TextBook</SelectItem>
+                  <SelectItem value="Workbook">Workbook</SelectItem>
+                  <SelectItem value="Material">Material</SelectItem>
+                  <SelectItem value="Video">Video</SelectItem>
+                  <SelectItem value="Audio">Audio</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -279,13 +282,13 @@ export default function AsliPrepContent() {
                       <span>{content.topic}</span>
                     </div>
                   )}
-                  {content.type === 'video' && content.duration && (
+                  {(content.type === 'Video' || content.type === 'Audio') && content.duration && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Duration:</span>
                       <span>{formatDuration(content.duration)}</span>
                     </div>
                   )}
-                  {(content.type === 'pdf' || content.type === 'ppt') && content.size && (
+                  {(content.type === 'TextBook' || content.type === 'Workbook' || content.type === 'Material') && content.size && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Size:</span>
                       <span>{formatFileSize(content.size)}</span>
@@ -301,7 +304,7 @@ export default function AsliPrepContent() {
                   )}
                 </div>
                 <div className="flex gap-2 mt-6">
-                  {content.type === 'video' ? (
+                  {content.type === 'Video' ? (
                     <Button 
                       className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
                       onClick={() => window.open(content.fileUrl, '_blank')}
@@ -309,13 +312,21 @@ export default function AsliPrepContent() {
                       <Play className="h-4 w-4 mr-2" />
                       Watch Video
                     </Button>
+                  ) : content.type === 'Audio' ? (
+                    <Button 
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                      onClick={() => window.open(content.fileUrl, '_blank')}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Play Audio
+                    </Button>
                   ) : (
                     <Button 
                       className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
                       onClick={() => window.open(content.fileUrl, '_blank')}
                     >
                       <Download className="h-4 w-4 mr-2" />
-                      {content.type === 'pdf' ? 'View PDF' : content.type === 'ppt' ? 'View PPT' : 'Download Note'}
+                      {content.type === 'TextBook' ? 'View TextBook' : content.type === 'Workbook' ? 'View Workbook' : 'Download Material'}
                     </Button>
                   )}
                 </div>

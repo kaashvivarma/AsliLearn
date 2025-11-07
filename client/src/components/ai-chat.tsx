@@ -187,7 +187,7 @@ export default function AIChat({ userId, context, className }: AIChatProps) {
           <div className="w-10 h-10 gradient-primary rounded-full flex items-center justify-center">
             <Zap className="w-5 h-5 text-white" />
           </div>
-          <CardTitle className="text-lg">AI Tutor</CardTitle>
+          <CardTitle className="text-lg">Vidya Tutor</CardTitle>
           <Badge variant="secondary" className="bg-green-100 text-green-800">
             Online
           </Badge>
@@ -201,7 +201,7 @@ export default function AIChat({ userId, context, className }: AIChatProps) {
             {messages.length === 0 ? (
               <div className="text-center text-gray-500 py-responsive">
                 <MessageCircle className="w-12 h-12 mx-auto mb-responsive text-gray-300" />
-                <p className="text-responsive-sm">Start a conversation with your AI tutor!</p>
+                <p className="text-responsive-sm">Start a conversation with your Vidya Tutor!</p>
                 <p className="text-responsive-xs mt-responsive">Ask any questions about your studies.</p>
               </div>
             ) : (

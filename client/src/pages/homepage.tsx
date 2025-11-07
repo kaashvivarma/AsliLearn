@@ -141,7 +141,7 @@ const Homepage = () => {
     {
       name: "Dr. Sarah Chen",
       role: "Medical Student, Harvard",
-      content: "Asli Stud's AI tutor helped me master complex anatomy concepts in half the time. The personalized approach is revolutionary.",
+      content: "Asli Stud's Vidya Tutor helped me master complex anatomy concepts in half the time. The personalized approach is revolutionary.",
       rating: 5
     },
     {

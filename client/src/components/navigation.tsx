@@ -37,8 +37,8 @@ export default function Navigation() {
 
   const navItems = [
     { path: "/learning-paths", label: "Learning Paths", icon: BookOpen },
-    { path: "/student-exams", label: "Weekend Exams", icon: FileText },
-    { path: "/ai-tutor", label: "AI Tutor", icon: MessageCircle },
+    { path: "/student-exams", label: "Exams", icon: FileText },
+    { path: "/ai-tutor", label: "Vidya Tutor", icon: MessageCircle },
   ];
 
   const NavContent = () => (

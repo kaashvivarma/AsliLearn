@@ -455,7 +455,7 @@ export default function StudentExams() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
+      <div className="w-full px-2 sm:px-4 lg:px-6 pt-24 pb-8">
         
         {/* Header */}
         <div className="mb-8">

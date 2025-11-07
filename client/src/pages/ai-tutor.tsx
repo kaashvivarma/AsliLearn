@@ -167,7 +167,7 @@ export default function AITutor() {
   return (
     <>
       <Navigation />
-      <div className={`container-responsive pt-responsive pb-responsive ${isMobile ? 'pb-20' : ''}`}>
+      <div className={`w-full px-2 sm:px-4 lg:px-6 pt-responsive pb-responsive ${isMobile ? 'pb-20' : ''}`}>
         
         {/* Header */}
         <div className="mb-responsive">
@@ -176,7 +176,7 @@ export default function AITutor() {
               <Zap className="w-6 h-6 text-white" />
             </div>
             <div className="text-center sm:text-left">
-              <h1 className="text-responsive-xl font-bold text-gray-900">AI Tutor</h1>
+              <h1 className="text-responsive-xl font-bold text-gray-900">Vidya Tutor</h1>
               <p className="text-responsive-sm text-gray-600">Your personal AI teaching assistant</p>
             </div>
             <Badge className="bg-green-100 text-green-800">
@@ -341,7 +341,7 @@ export default function AITutor() {
             {/* Usage Stats */}
             <Card>
               <CardHeader>
-                <CardTitle>AI Tutor Stats</CardTitle>
+                <CardTitle>Vidya Tutor Stats</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-center">

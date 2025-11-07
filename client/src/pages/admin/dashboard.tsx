@@ -267,7 +267,7 @@ const AdminDashboard = () => {
                 <span className="text-white font-bold text-responsive-sm">AS</span>
               </div>
               <div>
-                <h1 className="text-responsive-base font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">ALSI STUD</h1>
+                <h1 className="text-responsive-base font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">ASLI STUD</h1>
                 <p className="text-responsive-xs text-gray-600 font-medium">Admin Panel</p>
               </div>
             </div>
@@ -284,7 +284,7 @@ const AdminDashboard = () => {
                       <span className="text-white font-bold text-responsive-lg">AS</span>
                     </div>
                     <div>
-                      <h1 className="text-responsive-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">ALSI STUD</h1>
+                      <h1 className="text-responsive-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">ASLI STUD</h1>
                       <p className="text-responsive-xs text-gray-600 font-medium">Admin Panel</p>
                     </div>
                   </div>
@@ -358,7 +358,7 @@ const AdminDashboard = () => {
                       }`}
                     >
                       <FileText className="w-4 h-4" />
-                      <span className="font-medium">Weekend Exams</span>
+                      <span className="font-medium">Exams</span>
                     </button>
                     
                     <button
@@ -402,7 +402,7 @@ const AdminDashboard = () => {
               <span className="text-white font-bold text-xl">AS</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">ALSI STUD</h1>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">ASLI STUD</h1>
               <p className="text-xs text-gray-600 font-medium">Admin Panel</p>
             </div>
           </div>
@@ -479,7 +479,7 @@ const AdminDashboard = () => {
             }`}
           >
             <FileText className="w-5 h-5" />
-            <span className="font-medium">Weekend Exams</span>
+            <span className="font-medium">Exams</span>
           </button>
           
         </nav>

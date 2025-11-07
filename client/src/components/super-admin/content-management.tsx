@@ -10,18 +10,21 @@ import { Badge } from '@/components/ui/badge';
 import { Upload, Video, FileText, File, X, Trash2, Edit, Play, Download, Eye } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api-config';
 import { useToast } from '@/hooks/use-toast';
+import { checkConnectionStatus } from '@/utils/test-connection';
 
 interface Content {
   _id: string;
   title: string;
   description?: string;
-  type: 'video' | 'pdf' | 'ppt' | 'note';
+  type: 'TextBook' | 'Workbook' | 'Material' | 'Video' | 'Audio';
   board: string;
   subject: {
     _id: string;
     name: string;
   };
+  classNumber?: string;
   topic?: string;
+  date: string;
   fileUrl: string;
   thumbnailUrl?: string;
   duration?: number;
@@ -47,16 +50,26 @@ export default function ContentManagement() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    type: 'video' as 'video' | 'pdf' | 'ppt' | 'note',
+    type: 'Video' as 'TextBook' | 'Workbook' | 'Material' | 'Video' | 'Audio',
     board: 'CBSE_AP',
     subject: '',
     topic: '',
+    date: '',
     fileUrl: '',
     thumbnailUrl: '',
     duration: ''
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    // Check connection status on mount
+    checkConnectionStatus();
+    console.log('🔌 API Base URL:', API_BASE_URL);
+    
     fetchSubjects();
     fetchContents();
   }, [selectedBoard]);
@@ -116,59 +129,256 @@ export default function ContentManagement() {
     }
   };
 
+  const handleFileUpload = async (file: File): Promise<string | null> => {
+    setIsUploadingFile(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Please log in again',
+          variant: 'destructive'
+        });
+        return null;
+      }
+
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+
+      const uploadUrl = `${API_BASE_URL}/api/super-admin/content/upload-file?contentType=${formData.type}`;
+      console.log('📤 Uploading file:', file.name, 'Type:', formData.type, 'Size:', file.size);
+      console.log('📡 Upload URL:', uploadUrl);
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // Don't set Content-Type header - let browser set it with boundary for FormData
+        },
+        body: uploadFormData
+      });
+
+      console.log('📥 Upload response status:', response.status, response.statusText);
+      console.log('📥 Upload response headers:', Object.fromEntries(response.headers.entries()));
+
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      let responseData;
+      
+      if (contentType && contentType.includes('application/json')) {
+        responseData = await response.json();
+      } else {
+        // If not JSON, it might be an HTML error page
+        const text = await response.text();
+        console.error('❌ Non-JSON response received:', text.substring(0, 200));
+        toast({
+          title: 'Server Error',
+          description: `Server returned non-JSON response (Status: ${response.status}). Check server logs.`,
+          variant: 'destructive'
+        });
+        return null;
+      }
+
+      if (response.ok && responseData.success) {
+        console.log('✅ File uploaded successfully:', responseData.fileUrl);
+        return responseData.fileUrl;
+      } else {
+        console.error('❌ File upload failed:', responseData);
+        toast({
+          title: 'Upload Error',
+          description: responseData.message || 'Failed to upload file',
+          variant: 'destructive'
+        });
+        return null;
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: 'Upload Error',
+        description: error instanceof Error ? error.message : 'Failed to upload file',
+        variant: 'destructive'
+      });
+      return null;
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  const handleThumbnailUpload = async (file: File): Promise<string | null> => {
+    setIsUploadingThumbnail(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Please log in again',
+          variant: 'destructive'
+        });
+        return null;
+      }
+
+      const uploadFormData = new FormData();
+      uploadFormData.append('thumbnail', file);
+
+      console.log('📤 Uploading thumbnail:', file.name, 'Size:', file.size);
+
+      const response = await fetch(`${API_BASE_URL}/api/super-admin/content/upload-thumbnail`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // Don't set Content-Type header - let browser set it with boundary for FormData
+        },
+        body: uploadFormData
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok && responseData.success) {
+        console.log('✅ Thumbnail uploaded successfully:', responseData.thumbnailUrl);
+        return responseData.thumbnailUrl;
+      } else {
+        console.error('❌ Thumbnail upload failed:', responseData);
+        toast({
+          title: 'Upload Error',
+          description: responseData.message || 'Failed to upload thumbnail',
+          variant: 'destructive'
+        });
+        return null;
+      }
+    } catch (error) {
+      console.error('Thumbnail upload error:', error);
+      toast({
+        title: 'Upload Error',
+        description: error instanceof Error ? error.message : 'Failed to upload thumbnail',
+        variant: 'destructive'
+      });
+      return null;
+    } finally {
+      setIsUploadingThumbnail(false);
+    }
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.title || !formData.fileUrl || !formData.subject) {
+    // Prevent double submission
+    if (isSubmitting || isUploadingFile || isUploadingThumbnail) {
+      return;
+    }
+
+    // Validate required fields
+    if (!formData.title || !formData.subject || !formData.date) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all required fields',
+        description: 'Please fill in all required fields: title, subject, and date',
         variant: 'destructive'
       });
       return;
     }
 
+    // Validate file or fileUrl
+    if (!selectedFile && !formData.fileUrl) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please either upload a file or provide a file URL',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
+      let fileUrl = formData.fileUrl;
+      let thumbnailUrl = formData.thumbnailUrl;
+      let fileSize = 0;
+
+      // If a file is selected, upload it first
+      if (selectedFile) {
+        console.log('📤 Uploading file:', selectedFile.name, selectedFile.size);
+        const uploadedUrl = await handleFileUpload(selectedFile);
+        if (!uploadedUrl) {
+          setIsSubmitting(false);
+          return; // Error already shown in handleFileUpload
+        }
+        fileUrl = uploadedUrl;
+        fileSize = selectedFile.size;
+      }
+
+      // If a thumbnail file is selected, upload it
+      if (selectedThumbnail) {
+        console.log('📤 Uploading thumbnail:', selectedThumbnail.name);
+        const uploadedThumbnailUrl = await handleThumbnailUpload(selectedThumbnail);
+        if (uploadedThumbnailUrl) {
+          thumbnailUrl = uploadedThumbnailUrl;
+        }
+        // Continue even if thumbnail upload fails (it's optional)
+      }
+
       const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Please log in again',
+          variant: 'destructive'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const requestBody = {
+        title: formData.title.trim(),
+        description: formData.description?.trim() || undefined,
+        type: formData.type,
+        board: selectedBoard,
+        subject: formData.subject,
+        topic: formData.topic?.trim() || undefined,
+        date: formData.date,
+        fileUrl: fileUrl,
+        thumbnailUrl: thumbnailUrl || undefined,
+        duration: formData.duration ? Number(formData.duration) : 0,
+        size: fileSize
+      };
+
+      console.log('📦 Submitting content:', requestBody);
+
       const response = await fetch(`${API_BASE_URL}/api/super-admin/content`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          ...formData,
-          board: selectedBoard,
-          duration: formData.duration ? Number(formData.duration) : 0
-        })
+        body: JSON.stringify(requestBody)
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          toast({
-            title: 'Success',
-            description: 'Content uploaded successfully',
-          });
-          setIsUploadModalOpen(false);
-          setFormData({
-            title: '',
-            description: '',
-            type: 'video',
-            board: selectedBoard,
-            subject: '',
-            topic: '',
-            fileUrl: '',
-            thumbnailUrl: '',
-            duration: ''
-          });
-          fetchContents();
-        }
+      const responseData = await response.json();
+
+      if (response.ok && responseData.success) {
+        toast({
+          title: 'Success',
+          description: 'Content uploaded successfully',
+        });
+        setIsUploadModalOpen(false);
+        setFormData({
+          title: '',
+          description: '',
+          type: 'Video',
+          board: selectedBoard,
+          subject: '',
+          topic: '',
+          date: '',
+          fileUrl: '',
+          thumbnailUrl: '',
+          duration: ''
+        });
+        setSelectedFile(null);
+        setSelectedThumbnail(null);
+        fetchContents();
       } else {
-        const error = await response.json();
+        console.error('Upload failed:', responseData);
         toast({
           title: 'Error',
-          description: error.message || 'Failed to upload content',
+          description: responseData.message || 'Failed to upload content',
           variant: 'destructive'
         });
       }
@@ -176,9 +386,11 @@ export default function ContentManagement() {
       console.error('Upload error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to upload content',
+        description: error instanceof Error ? error.message : 'Failed to upload content',
         variant: 'destructive'
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -223,12 +435,16 @@ export default function ContentManagement() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'video':
+      case 'Video':
         return <Video className="w-4 h-4" />;
-      case 'pdf':
-        return <File className="w-4 h-4" />;
-      case 'note':
+      case 'TextBook':
         return <FileText className="w-4 h-4" />;
+      case 'Workbook':
+        return <File className="w-4 h-4" />;
+      case 'Material':
+        return <File className="w-4 h-4" />;
+      case 'Audio':
+        return <File className="w-4 h-4" />;
       default:
         return <File className="w-4 h-4" />;
     }
@@ -236,12 +452,16 @@ export default function ContentManagement() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'video':
+      case 'Video':
         return 'bg-red-100 text-red-700';
-      case 'pdf':
+      case 'TextBook':
         return 'bg-blue-100 text-blue-700';
-      case 'note':
+      case 'Workbook':
+        return 'bg-purple-100 text-purple-700';
+      case 'Material':
         return 'bg-green-100 text-green-700';
+      case 'Audio':
+        return 'bg-yellow-100 text-yellow-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -345,7 +565,13 @@ export default function ContentManagement() {
                       <span>{content.topic}</span>
                     </div>
                   )}
-                  {content.duration && content.type === 'video' && (
+                  {content.date && (
+                    <div className="flex items-center text-gray-600">
+                      <span className="font-medium mr-2">Date:</span>
+                      <span>{new Date(content.date).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  {content.duration && (content.type === 'Video' || content.type === 'Audio') && (
                     <div className="flex items-center text-gray-600">
                       <span className="font-medium mr-2">Duration:</span>
                       <span>{content.duration} min</span>
@@ -381,7 +607,11 @@ export default function ContentManagement() {
         setIsUploadModalOpen(open);
         if (open) {
           // Sync form board with selected board when modal opens
-          setFormData(prev => ({ ...prev, board: selectedBoard }));
+          setFormData(prev => ({ ...prev, board: selectedBoard, subject: '' }));
+        } else {
+          // Reset file selection when modal closes
+          setSelectedFile(null);
+          setSelectedThumbnail(null);
         }
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -436,16 +666,20 @@ export default function ContentManagement() {
                 <Label htmlFor="type">Content Type *</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(value: any) => setFormData({ ...formData, type: value })}
+                  onValueChange={(value: any) => {
+                    setFormData({ ...formData, type: value });
+                    setSelectedFile(null); // Clear file when content type changes
+                  }}
                 >
                   <SelectTrigger id="type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="pdf">PDF</SelectItem>
-                    <SelectItem value="ppt">PPT</SelectItem>
-                    <SelectItem value="note">Note</SelectItem>
+                    <SelectItem value="TextBook">TextBook</SelectItem>
+                    <SelectItem value="Workbook">Workbook</SelectItem>
+                    <SelectItem value="Material">Material</SelectItem>
+                    <SelectItem value="Video">Video</SelectItem>
+                    <SelectItem value="Audio">Audio</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -485,6 +719,17 @@ export default function ContentManagement() {
             </div>
 
             <div>
+              <Label htmlFor="date">Date *</Label>
+              <Input
+                id="date"
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
               <Label htmlFor="title">Title *</Label>
               <Input
                 id="title"
@@ -516,7 +761,7 @@ export default function ContentManagement() {
                   placeholder="e.g., Algebra, Mechanics"
                 />
               </div>
-              {formData.type === 'video' && (
+              {(formData.type === 'Video' || formData.type === 'Audio') && (
                 <div>
                   <Label htmlFor="duration">Duration (minutes)</Label>
                   <Input
@@ -531,36 +776,121 @@ export default function ContentManagement() {
             </div>
 
             <div>
-              <Label htmlFor="fileUrl">File URL *</Label>
-              <Input
-                id="fileUrl"
-                value={formData.fileUrl}
-                onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value })}
-                placeholder="https://example.com/video.mp4 or Google Drive link"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Enter direct URL to video, PDF, or Google Drive shareable link
-              </p>
+              <Label htmlFor="file">File *</Label>
+              <div className="space-y-2">
+                <Input
+                  id="file"
+                  type="file"
+                  accept={formData.type === 'TextBook' || formData.type === 'Workbook' || formData.type === 'Material' 
+                    ? '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.ods,.odp'
+                    : formData.type === 'Video'
+                    ? '.mp4,.mpeg,.mov,.avi,.webm,.mkv'
+                    : '.mp3,.wav,.ogg,.aac,.m4a,.webm'
+                  }
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedFile(file);
+                      setFormData({ ...formData, fileUrl: '' }); // Clear URL if file is selected
+                    }
+                  }}
+                  className="cursor-pointer"
+                />
+                {selectedFile && (
+                  <p className="text-xs text-green-600">
+                    Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                )}
+                <div className="text-xs text-gray-500">
+                  <p className="font-semibold mb-1">Or enter a URL:</p>
+                  <Input
+                    id="fileUrl"
+                    value={formData.fileUrl}
+                    onChange={(e) => {
+                      setFormData({ ...formData, fileUrl: e.target.value });
+                      if (e.target.value) setSelectedFile(null); // Clear file if URL is entered
+                    }}
+                    placeholder="https://example.com/video.mp4 or Google Drive link"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.type === 'TextBook' || formData.type === 'Workbook' || formData.type === 'Material'
+                    ? 'Accepted formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX'
+                    : formData.type === 'Video'
+                    ? 'Accepted formats: MP4, MPEG, MOV, AVI, WEBM, MKV'
+                    : 'Accepted formats: MP3, WAV, OGG, AAC, M4A'}
+                </p>
+              </div>
             </div>
 
             <div>
-              <Label htmlFor="thumbnailUrl">Thumbnail URL (Optional)</Label>
-              <Input
-                id="thumbnailUrl"
-                value={formData.thumbnailUrl}
-                onChange={(e) => setFormData({ ...formData, thumbnailUrl: e.target.value })}
-                placeholder="https://example.com/thumbnail.jpg"
-              />
+              <Label htmlFor="thumbnail">Thumbnail Image (Optional)</Label>
+              <div className="space-y-2">
+                <Input
+                  id="thumbnail"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedThumbnail(file);
+                      setFormData({ ...formData, thumbnailUrl: '' }); // Clear URL if file is selected
+                    } else {
+                      setSelectedThumbnail(null);
+                    }
+                  }}
+                  className="cursor-pointer"
+                />
+                {selectedThumbnail && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-green-600">
+                      Selected: {selectedThumbnail.name} ({(selectedThumbnail.size / 1024 / 1024).toFixed(2)} MB)
+                    </p>
+                    {selectedThumbnail.type.startsWith('image/') && (
+                      <img
+                        src={URL.createObjectURL(selectedThumbnail)}
+                        alt="Thumbnail preview"
+                        className="w-32 h-32 object-cover rounded border border-gray-300"
+                      />
+                    )}
+                  </div>
+                )}
+                <div className="text-xs text-gray-500">
+                  <p className="font-semibold mb-1">Or enter a URL:</p>
+                  <Input
+                    id="thumbnailUrl"
+                    value={formData.thumbnailUrl}
+                    onChange={(e) => {
+                      setFormData({ ...formData, thumbnailUrl: e.target.value });
+                      if (e.target.value) setSelectedThumbnail(null); // Clear file if URL is entered
+                    }}
+                    placeholder="https://example.com/thumbnail.jpg"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Accepted formats: JPG, PNG, GIF, WEBP (Max 5MB)
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsUploadModalOpen(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsUploadModalOpen(false)}
+                disabled={isSubmitting || isUploadingFile || isUploadingThumbnail}
+              >
                 Cancel
               </Button>
-              <Button type="submit" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">
+              <Button 
+                type="submit" 
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                disabled={isSubmitting || isUploadingFile || isUploadingThumbnail}
+              >
                 <Upload className="w-4 h-4 mr-2" />
-                Upload Content
+                {isSubmitting || isUploadingFile || isUploadingThumbnail 
+                  ? 'Uploading...' 
+                  : 'Upload Content'}
               </Button>
             </div>
           </form>

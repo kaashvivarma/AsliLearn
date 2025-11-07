@@ -17,6 +17,7 @@ interface Subject {
   code?: string;
   description?: string;
   board: string;
+  classNumber?: string;
   isActive: boolean;
   createdAt: string;
 }
@@ -82,7 +83,7 @@ export default function SubjectManagement() {
     if (!formData.name || !selectedBoard) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all required fields and select a board',
+        description: 'Please fill in all required fields',
         variant: 'destructive'
       });
       return;
@@ -92,9 +93,10 @@ export default function SubjectManagement() {
       const token = localStorage.getItem('authToken');
       
       // Build request body, only including fields with values
+      // Use formData.board to ensure we use the board selected in the form
       const requestBody: any = {
         name: formData.name.trim(),
-        board: selectedBoard
+        board: formData.board || selectedBoard
       };
       
       if (formData.code && formData.code.trim()) {
@@ -290,7 +292,15 @@ export default function SubjectManagement() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between text-sm">
+                {subject.classNumber && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Class:</span>
+                    <Badge className="bg-blue-100 text-blue-700">
+                      Class {subject.classNumber}
+                    </Badge>
+                  </div>
+                )}
+                <div className={`flex items-center justify-between text-sm ${subject.classNumber ? 'mt-2' : ''}`}>
                   <span className="text-gray-600">Board:</span>
                   <Badge className="bg-purple-100 text-purple-700">
                     {BOARDS.find(b => b.value === subject.board)?.label || subject.board}
@@ -309,7 +319,26 @@ export default function SubjectManagement() {
       )}
 
       {/* Add Subject Modal */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+      <Dialog open={isAddModalOpen} onOpenChange={(open) => {
+        setIsAddModalOpen(open);
+        if (open) {
+          // Initialize form with current board when modal opens
+          setFormData({
+            name: '',
+            code: '',
+            description: '',
+            board: selectedBoard
+          });
+        } else {
+          // Reset form when modal closes
+          setFormData({
+            name: '',
+            code: '',
+            description: '',
+            board: selectedBoard
+          });
+        }
+      }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Create New Subject</DialogTitle>
