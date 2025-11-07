@@ -14,9 +14,7 @@ import {
   Users, 
   Plus, 
   Search, 
-  Edit, 
   Trash2, 
-  Eye, 
   Mail,
   Phone,
   BookOpen,
@@ -93,7 +91,7 @@ const TeacherManagement = () => {
   const fetchTeachers = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('${API_BASE_URL}/api/admin/teachers', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/teachers`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -192,7 +190,7 @@ const TeacherManagement = () => {
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('${API_BASE_URL}/api/admin/subjects', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/subjects`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -239,7 +237,7 @@ const TeacherManagement = () => {
   const fetchClasses = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('${API_BASE_URL}/api/admin/classes', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/classes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -284,9 +282,16 @@ const TeacherManagement = () => {
 
   const handleAddTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!newTeacher.fullName || !newTeacher.email || !newTeacher.department || newTeacher.subjects.length === 0) {
+      alert('Please fill in all required fields: Name, Email, Department, and at least one subject.');
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('${API_BASE_URL}/api/admin/teachers', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/teachers`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -295,18 +300,30 @@ const TeacherManagement = () => {
         body: JSON.stringify(newTeacher)
       });
 
-      if (response.ok) {
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        const text = await response.text();
+        console.error('Failed to parse JSON response:', text);
+        alert(`Failed to add teacher: Server returned invalid response. Status: ${response.status}`);
+        return;
+      }
+      
+      if (response.ok && (responseData.success === true || responseData.success === undefined)) {
         setNewTeacher({ fullName: '', email: '', phone: '', department: '', qualifications: '', subjects: [] });
         setIsAddDialogOpen(false);
         fetchTeachers();
         alert('Teacher added successfully!');
       } else {
-        const errorData = await response.json();
-        alert(`Failed to add teacher: ${errorData.message || 'Unknown error'}`);
+        const errorMsg = responseData.message || responseData.error || 'Unknown error occurred';
+        console.error('Error response:', responseData);
+        alert(`Failed to add teacher: ${errorMsg}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add teacher:', error);
-      alert('Failed to add teacher. Please try again.');
+      const errorMsg = error.message || 'Network error. Please check your connection and try again.';
+      alert(`Failed to add teacher: ${errorMsg}`);
     }
   };
 
@@ -764,15 +781,16 @@ const TeacherManagement = () => {
                 Add Teacher
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-white/95 border-purple-200 backdrop-blur-xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Add New Teacher</DialogTitle>
-                <DialogDescription className="text-gray-600 text-lg">
+            <DialogContent className="max-w-2xl max-h-[90vh] bg-white/95 border-purple-200 backdrop-blur-xl flex flex-col">
+              <DialogHeader className="flex-shrink-0">
+                <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Add New Teacher</DialogTitle>
+                <DialogDescription className="text-gray-600 text-sm">
                   Create a new teacher account and assign subjects.
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleAddTeacher} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex-1 overflow-y-auto pr-2">
+                <form onSubmit={handleAddTeacher} id="add-teacher-form" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="fullName" className="text-gray-700 font-medium">Full Name</Label>
                     <Input
@@ -804,12 +822,15 @@ const TeacherManagement = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="department" className="text-gray-700 font-medium">Department</Label>
+                    <Label htmlFor="department" className="text-gray-700 font-medium">
+                      Department <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="department"
                       value={newTeacher.department}
                       onChange={(e) => setNewTeacher({ ...newTeacher, department: e.target.value })}
                       className="border-purple-200 focus:border-purple-400 rounded-xl"
+                      required
                     />
                   </div>
                 </div>
@@ -820,59 +841,110 @@ const TeacherManagement = () => {
                     value={newTeacher.qualifications}
                     onChange={(e) => setNewTeacher({ ...newTeacher, qualifications: e.target.value })}
                     className="border-purple-200 focus:border-purple-400 rounded-xl"
-                    rows={3}
+                    rows={2}
                   />
                 </div>
                 <div>
-                  <Label className="text-gray-700 font-medium">Assign Subjects</Label>
-                  <Select onValueChange={(value) => {
-                    if (!newTeacher.subjects.includes(value)) {
-                      setNewTeacher({ ...newTeacher, subjects: [...newTeacher.subjects, value] });
-                    }
-                  }}>
-                    <SelectTrigger className="border-purple-200 focus:border-purple-400 rounded-xl">
-                      <SelectValue placeholder="Select subjects to assign" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subjects.map(subject => (
-                        <SelectItem key={subject.id || subject._id} value={subject.id || subject._id}>
-                          {subject.name} ({subject.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {newTeacher.subjects.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {newTeacher.subjects.map(subjectId => {
-                        const subject = subjects.find(s => s.id === subjectId);
-                        return subject ? (
-                          <Badge key={subjectId} className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border-purple-200 rounded-lg">
-                            {subject.name}
-                            <button
-                              type="button"
-                              onClick={() => setNewTeacher({ 
-                                ...newTeacher, 
-                                subjects: newTeacher.subjects.filter(id => id !== subjectId) 
-                              })}
-                              className="ml-2 text-purple-600 hover:text-purple-800"
-                            >
-                              ×
-                            </button>
-                          </Badge>
-                        ) : null;
+                  <Label className="text-gray-700 font-medium mb-3 block">
+                    Assign Subjects <span className="text-red-500">*</span>
+                  </Label>
+                  {subjects.length === 0 ? (
+                    <div className="text-sm text-gray-500 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                      No subjects available. Please add subjects first.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-purple-200 rounded-xl bg-gray-50">
+                      {subjects.map(subject => {
+                        const subjectId = subject.id || subject._id;
+                        const isSelected = newTeacher.subjects.includes(subjectId);
+                        return (
+                          <Card
+                            key={subjectId}
+                            className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                              isSelected
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-500 shadow-lg'
+                                : 'bg-white border-gray-200 hover:border-purple-300'
+                            }`}
+                            onClick={() => {
+                              if (isSelected) {
+                                setNewTeacher({
+                                  ...newTeacher,
+                                  subjects: newTeacher.subjects.filter(id => id !== subjectId)
+                                });
+                              } else {
+                                setNewTeacher({
+                                  ...newTeacher,
+                                  subjects: [...newTeacher.subjects, subjectId]
+                                });
+                              }
+                            }}
+                          >
+                            <CardContent className="p-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className={`font-semibold text-xs truncate ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                                    {subject.name}
+                                  </p>
+                                  {subject.code && (
+                                    <p className={`text-xs mt-0.5 truncate ${isSelected ? 'text-purple-100' : 'text-gray-600'}`}>
+                                      {subject.code}
+                                    </p>
+                                  )}
+                                </div>
+                                {isSelected && (
+                                  <CheckCircle className="w-4 h-4 text-white ml-1 flex-shrink-0" />
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
                       })}
                     </div>
                   )}
+                  {newTeacher.subjects.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-600 mb-1">
+                        Selected ({newTeacher.subjects.length}):
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {newTeacher.subjects.map(subjectId => {
+                          const subject = subjects.find(s => (s.id || s._id) === subjectId);
+                          return subject ? (
+                            <Badge key={subjectId} className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border-purple-200 rounded-lg px-3 py-1">
+                              {subject.name}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setNewTeacher({ 
+                                    ...newTeacher, 
+                                    subjects: newTeacher.subjects.filter(id => id !== subjectId) 
+                                  });
+                                }}
+                                className="ml-2 text-purple-600 hover:text-purple-800 font-bold"
+                              >
+                                ×
+                              </button>
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {newTeacher.subjects.length === 0 && (
+                    <p className="text-sm text-red-500 mt-2">Please select at least one subject</p>
+                  )}
                 </div>
-                <div className="flex justify-end space-x-3">
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} className="rounded-xl">
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl">
-                    Add Teacher
-                  </Button>
-                </div>
-              </form>
+                </form>
+              </div>
+              <div className="flex-shrink-0 flex justify-end space-x-3 pt-4 border-t border-gray-200 mt-4">
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} className="rounded-xl">
+                  Cancel
+                </Button>
+                <Button type="submit" form="add-teacher-form" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl">
+                  Add Teacher
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
@@ -985,20 +1057,6 @@ const TeacherManagement = () => {
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                     <div className="flex items-center space-x-2">
-                      <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50 rounded-xl">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="border-blue-200 text-blue-700 hover:bg-blue-50 rounded-xl"
-                        onClick={() => {
-                          setEditingTeacher(teacher);
-                          setIsEditDialogOpen(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
                       <Button 
                         size="sm" 
                         variant="outline" 

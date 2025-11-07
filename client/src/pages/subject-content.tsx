@@ -17,12 +17,11 @@ import {
   CheckCircle,
   FileText,
   Video,
-  Youtube,
-  Download,
-  Share
+  Youtube
 } from 'lucide-react';
 import Navigation from '@/components/navigation';
 import VideoModal from '@/components/video-modal';
+import CalendarView from '@/components/student/calendar-view';
 import { Link } from 'wouter';
 import { API_BASE_URL } from '@/lib/api-config';
 
@@ -66,22 +65,87 @@ interface Quiz {
   createdAt: string;
 }
 
+interface ContentItem {
+  _id: string;
+  title: string;
+  description?: string;
+  type: 'TextBook' | 'Workbook' | 'Material' | 'Video' | 'Audio';
+  fileUrl: string;
+  date: string;
+  createdAt: string;
+}
+
 export default function SubjectContent() {
   const [, params] = useRoute('/subject/:id');
   const [subject, setSubject] = useState<Subject | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  // Show calendar by default when accessed from learning paths
+  const [showCalendar, setShowCalendar] = useState(true);
+  const [contents, setContents] = useState<ContentItem[]>([]);
+  const [loadingContents, setLoadingContents] = useState(false);
+  const [completedContentIds, setCompletedContentIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (params?.id) {
       fetchSubjectContent(params.id);
+      // Load completed content from localStorage
+      loadCompletedContent(params.id);
     }
   }, [params?.id]);
 
+  // Load completed content from localStorage
+  const loadCompletedContent = (subjectId: string) => {
+    try {
+      const stored = localStorage.getItem(`completed_content_${subjectId}`);
+      if (stored) {
+        const completedIds = JSON.parse(stored);
+        setCompletedContentIds(new Set(completedIds));
+      }
+    } catch (error) {
+      console.error('Failed to load completed content:', error);
+    }
+  };
+
+  // Save completed content to localStorage
+  const saveCompletedContent = (subjectId: string, completedIds: Set<string>) => {
+    try {
+      localStorage.setItem(`completed_content_${subjectId}`, JSON.stringify(Array.from(completedIds)));
+    } catch (error) {
+      console.error('Failed to save completed content:', error);
+    }
+  };
+
+  // Calculate progress based on completed items
+  const calculateProgress = (totalItems: number, completedItems: number): number => {
+    if (totalItems === 0) return 0;
+    return Math.round((completedItems / totalItems) * 100);
+  };
+
+  // Handle mark as done
+  const handleMarkAsDone = (contentId: string) => {
+    const newCompleted = new Set(completedContentIds);
+    if (newCompleted.has(contentId)) {
+      newCompleted.delete(contentId);
+    } else {
+      newCompleted.add(contentId);
+    }
+    setCompletedContentIds(newCompleted);
+    
+    // Save to localStorage
+    if (params?.id) {
+      saveCompletedContent(params.id, newCompleted);
+    }
+
+    // Update subject progress
+    const progress = calculateProgress(contents.length, newCompleted.size);
+    setSubject(prev => prev ? { ...prev, progress } : prev);
+  };
+
   const fetchSubjectContent = async (subjectId: string) => {
     try {
-      const [subjectResponse, videosResponse] = await Promise.all([
+      const [subjectResponse, videosResponse, contentsResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/api/subjects/${subjectId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
@@ -89,6 +153,12 @@ export default function SubjectContent() {
           }
         }),
         fetch(`${API_BASE_URL}/api/student/videos?subject=${encodeURIComponent(subjectId)}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json',
+          }
+        }),
+        fetch(`${API_BASE_URL}/api/student/asli-prep-content?subject=${encodeURIComponent(subjectId)}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
             'Content-Type': 'application/json',
@@ -168,6 +238,38 @@ export default function SubjectContent() {
         console.warn('⚠️ Videos API failed:', videosResponse.status, videosResponse.statusText);
         setSubject(prev => prev ? { ...prev, videos: [] } as any : prev);
       }
+
+      // Fetch content for calendar view
+      setLoadingContents(true);
+      if (contentsResponse.ok) {
+        const contentType = contentsResponse.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const contentsData = await contentsResponse.json();
+          const contentsList = contentsData.data || contentsData || [];
+          console.log('📚 Contents fetched:', contentsList.length);
+          console.log('📚 Sample content item:', contentsList[0] ? {
+            title: contentsList[0].title,
+            date: contentsList[0].date,
+            createdAt: contentsList[0].createdAt,
+            dateType: typeof contentsList[0].date
+          } : 'No content');
+          setContents(contentsList);
+          
+          // Update progress after loading contents
+          // Load completed items and calculate progress
+          if (params?.id) {
+            const stored = localStorage.getItem(`completed_content_${params.id}`);
+            const completedIds = stored ? JSON.parse(stored) : [];
+            const progress = calculateProgress(contentsList.length, completedIds.length);
+            setSubject(prev => prev ? { ...prev, progress } : prev);
+            setCompletedContentIds(new Set(completedIds));
+          }
+        }
+      } else {
+        console.warn('⚠️ Contents API failed:', contentsResponse.status);
+        setContents([]);
+      }
+      setLoadingContents(false);
 
     } catch (error) {
       console.error('Failed to fetch subject content:', error);
@@ -254,13 +356,16 @@ export default function SubjectContent() {
   return (
     <>
       <Navigation />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
         
         {/* Header Section */}
         <div className="mb-8">
           <div className="flex items-center mb-4">
             <Link href="/learning-paths">
-              <Button variant="ghost" className="mr-4">
+              <Button 
+                variant="outline" 
+                className="mr-4 bg-white/90 backdrop-blur-sm border-gray-300 shadow-sm hover:bg-white hover:shadow-md transition-all"
+              >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Learning Paths
               </Button>
@@ -306,22 +411,19 @@ export default function SubjectContent() {
                   <span className="text-sm font-medium text-blue-100">Your Progress</span>
                   <span className="text-sm font-medium text-white">{subject.progress || 0}%</span>
                 </div>
-                <Progress value={subject.progress || 0} className="h-2 bg-white/20" />
+                <Progress value={subject.progress || 0} className="h-2 bg-white/20 [&>div]:bg-white" />
               </div>
 
               <div className="flex flex-wrap gap-4">
-                <Button className="bg-white text-primary hover:bg-blue-50">
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Learning
-                </Button>
-                <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Materials
-                </Button>
-                <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
-                  <Share className="w-4 h-4 mr-2" />
-                  Share
-                </Button>
+                {!showCalendar && (
+                  <Button 
+                    className="bg-white text-primary hover:bg-blue-50"
+                    onClick={() => setShowCalendar(true)}
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Start Learning
+                  </Button>
+                )}
               </div>
             </div>
             
@@ -334,16 +436,37 @@ export default function SubjectContent() {
           </div>
         </div>
 
-        {/* Content Tabs */}
-        <Tabs defaultValue="videos" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-1">
-            <TabsTrigger value="videos" className="flex items-center space-x-2">
-              <Video className="w-4 h-4" />
-              <span>Videos ({subject.videos?.length || 0})</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Calendar View */}
+        {showCalendar ? (
+          <div className="space-y-6">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Learning Calendar</h2>
+              <p className="text-gray-600 mt-1">Content organized by upload date</p>
+            </div>
+            {loadingContents ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading content...</p>
+              </div>
+            ) : (
+              <CalendarView 
+                contents={contents}
+                onMarkAsDone={handleMarkAsDone}
+                completedItems={Array.from(completedContentIds)}
+              />
+            )}
+          </div>
+        ) : (
+          /* Content Tabs */
+          <Tabs defaultValue="videos" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-1">
+              <TabsTrigger value="videos" className="flex items-center space-x-2">
+                <Video className="w-4 h-4" />
+                <span>Videos ({subject.videos?.length || 0})</span>
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="videos" className="space-y-6">
+            <TabsContent value="videos" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {subject.videos?.map((video) => (
                 <Card key={video._id} className="hover:shadow-lg transition-shadow duration-200">
@@ -391,7 +514,8 @@ export default function SubjectContent() {
             )}
           </TabsContent>
 
-        </Tabs>
+          </Tabs>
+        )}
       </div>
 
       {/* Video Modal */}

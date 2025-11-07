@@ -162,7 +162,7 @@ export default function StudentExams() {
   }, [setLocation]);
 
   // Fetch available exams
-  const { data: exams, isLoading, error } = useQuery({
+  const { data: examsData, isLoading, error } = useQuery({
     queryKey: ['/api/student/exams'],
     queryFn: async () => {
       console.log('🔍 Student Exams: Fetching student exams...');
@@ -175,25 +175,37 @@ export default function StudentExams() {
         }
       });
       console.log('🔍 Student Exams: Exams API response status:', response.status);
-      console.log('Response status:', response.status);
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Failed to fetch exams:', errorText);
-        // Return fallback data instead of throwing error
-        return { exams: [] };
+        // Return empty array instead of object
+        return [];
       }
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         console.log('Fetched exams:', data);
-        return data.data || data;
+        // Handle different response formats
+        if (Array.isArray(data)) {
+          return data;
+        } else if (data.data && Array.isArray(data.data)) {
+          return data.data;
+        } else if (data.exams && Array.isArray(data.exams)) {
+          return data.exams;
+        } else {
+          console.warn('Unexpected exams response format:', data);
+          return [];
+        }
       } else {
         console.warn('Exams response is not JSON, using fallback data');
-        return { exams: [] };
+        return [];
       }
     },
     enabled: isAuthenticated // Only run when authenticated
   });
+
+  // Ensure exams is always an array
+  const exams = Array.isArray(examsData) ? examsData : [];
 
   // Fetch assessments
   const { data: assessments, isLoading: isLoadingAssessments, error: assessmentsError } = useQuery({
@@ -459,29 +471,14 @@ export default function StudentExams() {
         
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Exams & Assessments</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Exams</h1>
           <p className="text-gray-600">Take practice exams and track your progress</p>
           
-          {/* Debug Info */}
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-2">Debug Info:</h4>
-            <p className="text-sm text-blue-700">
-              Loading: {isLoading ? 'Yes' : 'No'} | 
-              Error: {error ? 'Yes' : 'No'} | 
-              Exams Count: {exams?.length || 0}
-            </p>
-            {exams && (
-              <div className="mt-2">
-                <p className="text-xs text-blue-600">Exam IDs: {exams.map((exam: any) => exam._id).join(', ')}</p>
-              </div>
-            )}
-          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="available">Available Exams</TabsTrigger>
-            <TabsTrigger value="assessments">Assessments</TabsTrigger>
             <TabsTrigger value="attempted">Attempted Exams</TabsTrigger>
             <TabsTrigger value="ranking">My Rankings</TabsTrigger>
             <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
@@ -490,7 +487,7 @@ export default function StudentExams() {
           {/* Available Exams */}
           <TabsContent value="available" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {exams?.filter((exam: Exam) => {
+              {exams.filter((exam: Exam) => {
                 const status = getExamStatus(exam);
                 // Only show exams that are active and not yet attempted
                 const hasAttempted = results?.data?.some((result: any) => {
@@ -575,7 +572,7 @@ export default function StudentExams() {
               })}
             </div>
 
-            {exams?.filter((exam: Exam) => {
+            {exams.filter((exam: Exam) => {
               const status = getExamStatus(exam);
               const hasAttempted = results?.data?.some((result: any) => {
                 const resultExamId = getExamIdFromResult(result);
@@ -595,7 +592,7 @@ export default function StudentExams() {
           {/* Attempted Exams */}
           <TabsContent value="attempted" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {exams?.filter((exam: Exam) => {
+              {exams.filter((exam: Exam) => {
                 // Show exams that have been attempted
                 return results?.data?.some((result: any) => {
                   const resultExamId = getExamIdFromResult(result);
@@ -737,7 +734,7 @@ export default function StudentExams() {
               })}
             </div>
 
-            {exams?.filter((exam: Exam) => {
+            {exams.filter((exam: Exam) => {
               return results?.data?.some((result: any) => {
                 const resultExamId = getExamIdFromResult(result);
                 const examId = exam._id?.toString();
@@ -752,76 +749,6 @@ export default function StudentExams() {
             )}
           </TabsContent>
 
-          {/* Assessments */}
-          <TabsContent value="assessments" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {assessments?.map((assessment: any) => (
-                <Card key={assessment._id} className="hover:shadow-lg transition-shadow bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg mb-2">{assessment.title}</CardTitle>
-                        <p className="text-sm text-gray-600 mb-3">{assessment.description}</p>
-                      </div>
-                      <Badge className={assessment.difficulty === 'beginner' ? 'bg-green-100 text-green-700' : 
-                                     assessment.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700' : 
-                                     'bg-red-100 text-red-700'}>
-                        {assessment.difficulty.toUpperCase()}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {/* Assessment Details */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Duration</span>
-                          <span className="font-medium">{assessment.duration} minutes</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Total Points</span>
-                          <span className="font-medium">{assessment.totalPoints}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Subject</span>
-                          <span className="font-medium">{assessment.subjectIds?.[0] || 'General'}</span>
-                        </div>
-                        {assessment.isDriveQuiz && (
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Type</span>
-                            <Badge className="bg-blue-100 text-blue-700">Google Drive</Badge>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Action Button */}
-                      <Button 
-                        onClick={() => {
-                          if (assessment.isDriveQuiz && assessment.driveLink) {
-                            window.open(assessment.driveLink, '_blank');
-                          } else {
-                            alert('Assessment functionality coming soon!');
-                          }
-                        }}
-                        className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg"
-                      >
-                        <Target className="w-4 h-4 mr-2" />
-                        {assessment.isDriveQuiz ? 'Open in Drive' : 'Take Assessment'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {(!assessments || assessments.length === 0) && (
-              <div className="text-center py-12">
-                <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Assessments Available</h3>
-                <p className="text-gray-600">Check back later for new assessments</p>
-              </div>
-            )}
-          </TabsContent>
 
 
           {/* Student Rankings */}
@@ -832,7 +759,7 @@ export default function StudentExams() {
           {/* Upcoming Exams */}
           <TabsContent value="upcoming" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {exams?.filter((exam: Exam) => getExamStatus(exam).status === 'upcoming').map((exam: Exam) => (
+              {exams.filter((exam: Exam) => getExamStatus(exam).status === 'upcoming').map((exam: Exam) => (
                 <Card key={exam._id} className="hover:shadow-lg transition-shadow bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -885,7 +812,7 @@ export default function StudentExams() {
               ))}
             </div>
 
-            {exams?.filter((exam: Exam) => getExamStatus(exam).status === 'upcoming').length === 0 && (
+            {exams.filter((exam: Exam) => getExamStatus(exam).status === 'upcoming').length === 0 && (
               <div className="text-center py-12">
                 <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Upcoming Exams</h3>

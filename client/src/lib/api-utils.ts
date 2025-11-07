@@ -1,22 +1,17 @@
 // Centralized API URL Management
-// This file helps you switch between Railway (production) and local development easily
+// Local Backend - All frontend calls use local development server
 
-// Current configuration: Your frontend is connected to RAILWAY
-const RAILWAY_URL = 'https://asli-stud-back-production.up.railway.app';
 const LOCAL_URL = 'http://localhost:3001'; // Change this if your local backend runs on different port
 
 // Check environment
 const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
 
-// Switch this to 'local' to use local backend, 'railway' for Railway backend
-const BACKEND_MODE: 'railway' | 'local' = 'railway';
-
-// Export the appropriate URL
-export const API_BASE_URL = BACKEND_MODE === 'local' ? LOCAL_URL : RAILWAY_URL;
+// Use local backend only
+export const API_BASE_URL = LOCAL_URL;
 
 // Log current configuration (helps with debugging)
 if (isDevelopment) {
-  console.log(`🔌 Backend Mode: ${BACKEND_MODE.toUpperCase()}`);
+  console.log(`🔌 Backend Mode: LOCAL`);
   console.log(`📡 API Base URL: ${API_BASE_URL}`);
 }
 

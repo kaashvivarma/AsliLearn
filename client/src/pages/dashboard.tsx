@@ -28,7 +28,6 @@ import { useState, useEffect } from "react";
 import YouTubePlayer from '@/components/youtube-player';
 import DriveViewer from '@/components/drive-viewer';
 import VideoModal from '@/components/video-modal';
-import AsliPrepContent from '@/components/student/asli-prep-content';
 import { API_BASE_URL } from '@/lib/api-config';
 
 // Mock user ID - in a real app, this would come from authentication
@@ -128,6 +127,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ questionsAnswered: 0, accuracyRate: 0, rank: 0 });
   const [exams, setExams] = useState<any[]>([]);
   const [subjectProgress, setSubjectProgress] = useState<any[]>([]);
+  const [overallProgress, setOverallProgress] = useState(0);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
 
   useEffect(() => {
@@ -193,6 +193,50 @@ export default function Dashboard() {
           ? Math.round(rankingsData.reduce((sum: number, r: any) => sum + (r.rank || 0), 0) / rankingsData.length)
           : 0;
 
+        // Fetch actual subject names from API FIRST to map exam subject keys to real names
+        let subjectNameMap = new Map<string, string>(); // Maps subject keys (maths, physics, etc.) to actual names
+        let subjectsList: any[] = [];
+        try {
+          const token = localStorage.getItem('authToken');
+          if (token) {
+            const subjectsResponse = await fetch(`${API_BASE_URL}/api/student/subjects`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (subjectsResponse.ok) {
+              const subjectsData = await subjectsResponse.json();
+              subjectsList = subjectsData.subjects || subjectsData.data || [];
+              
+              // Create a map from subject keys to actual names
+              // Map common exam subject keys to actual subject names
+              subjectsList.forEach((subject: any) => {
+                const subjectName = subject.name || '';
+                const subjectNameLower = subjectName.toLowerCase();
+                
+                // Map common variations
+                if (subjectNameLower.includes('math') || subjectNameLower.includes('mathematics')) {
+                  subjectNameMap.set('maths', subjectName);
+                  subjectNameMap.set('mathematics', subjectName);
+                }
+                if (subjectNameLower.includes('physics')) {
+                  subjectNameMap.set('physics', subjectName);
+                }
+                if (subjectNameLower.includes('chemistry')) {
+                  subjectNameMap.set('chemistry', subjectName);
+                }
+                
+                // Also map by exact name match (case-insensitive)
+                subjectNameMap.set(subjectNameLower, subjectName);
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch subjects for name mapping:', error);
+        }
+
         // Calculate subject-wise progress from exam results
         const subjectMap = new Map<string, { total: number; correct: number; exams: number }>();
         
@@ -210,9 +254,13 @@ export default function Dashboard() {
           }
         });
 
-        // Convert subject map to progress array
-        const progressArray = Array.from(subjectMap.entries()).map(([name, data]) => {
+        // Convert subject map to progress array with actual subject names
+        const progressArray = Array.from(subjectMap.entries()).map(([key, data]) => {
           const progress = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+          // Get actual subject name from map, or capitalize the key as fallback
+          const actualName = subjectNameMap.get(key.toLowerCase()) || 
+                           subjectNameMap.get(key) || 
+                           key.charAt(0).toUpperCase() + key.slice(1);
           const colors = [
             'bg-blue-100 text-blue-600',
             'bg-green-100 text-green-600',
@@ -221,20 +269,142 @@ export default function Dashboard() {
             'bg-pink-100 text-pink-600'
           ];
           return {
-            id: name.toLowerCase(),
-            name: name,
+            id: key.toLowerCase(),
+            name: actualName,
             progress: progress,
             trend: progress >= 70 ? 'up' as const : progress >= 50 ? 'neutral' as const : 'down' as const,
-            currentTopic: `${name} - Recent Exams`,
+            currentTopic: `${actualName} - Recent Exams`,
             color: colors[Math.min(subjectMap.size - 1, Math.floor(Math.random() * colors.length))]
           };
         });
 
+        // Fetch subject progress from learning paths (localStorage)
+        // Get all subjects assigned to the student
+        let learningPathProgress: Map<string, number> = new Map();
+        try {
+          const token = localStorage.getItem('authToken');
+          if (token && subjectsList.length > 0) {
+            // Get progress for each subject from localStorage and content count
+            for (const subject of subjectsList) {
+              const subjectId = subject._id || subject.id;
+              try {
+                const stored = localStorage.getItem(`completed_content_${subjectId}`);
+                if (stored) {
+                  const completedIds = JSON.parse(stored);
+                  
+                  // Fetch content count for this subject to calculate accurate progress
+                  try {
+                    const contentResponse = await fetch(`${API_BASE_URL}/api/student/asli-prep-content?subject=${encodeURIComponent(subjectId)}`, {
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                      }
+                    });
+                    
+                    if (contentResponse.ok) {
+                      const contentData = await contentResponse.json();
+                      const contents = contentData.data || contentData || [];
+                      const totalContent = contents.length;
+                      
+                      if (totalContent > 0) {
+                        const progress = Math.round((completedIds.length / totalContent) * 100);
+                        learningPathProgress.set(subjectId, progress);
+                      } else if (completedIds.length > 0) {
+                        // If there's no content but items are marked, set to 0
+                        learningPathProgress.set(subjectId, 0);
+                      }
+                    }
+                  } catch (contentError) {
+                    console.error('Error fetching content for subject:', subjectId, contentError);
+                    // Fallback: use completed count as rough estimate
+                    if (completedIds.length > 0) {
+                      const progress = Math.min(100, (completedIds.length * 10));
+                      learningPathProgress.set(subjectId, progress);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error('Error reading progress for subject:', subjectId, e);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch learning path progress:', error);
+        }
+
+        // Merge exam progress with learning path progress
+        // If a subject has both, take the average or use the higher value
+        const mergedProgress = new Map<string, { progress: number; name: string; color: string; currentTopic: string }>();
+        
+        // Add exam-based progress
+        progressArray.forEach(subj => {
+          mergedProgress.set(subj.id, {
+            progress: subj.progress,
+            name: subj.name,
+            color: subj.color,
+            currentTopic: subj.currentTopic
+          });
+        });
+
+        // Merge with learning path progress
+        learningPathProgress.forEach((progress, subjectId) => {
+          // Find the subject name from the subjects list
+          const subject = subjectsList.find(s => (s._id || s.id) === subjectId);
+          const subjectName = subject?.name || 'Subject';
+          
+          // Try to match by subject ID or find existing entry
+          let existing = null;
+          // Check if this subject matches any exam-based subject by name
+          Array.from(mergedProgress.entries()).forEach(([key, value]) => {
+            if (value.name === subjectName) {
+              existing = value;
+              // Update the existing entry with averaged progress
+              mergedProgress.set(key, {
+                ...value,
+                progress: Math.round((value.progress + progress) / 2)
+              });
+            }
+          });
+          
+          // If we found a match, skip adding new entry
+          if (existing) {
+            return;
+          }
+          
+          // If no match found, add as new entry
+          if (!existing) {
+            const colors = [
+              'bg-blue-100 text-blue-600',
+              'bg-green-100 text-green-600',
+              'bg-purple-100 text-purple-600',
+              'bg-orange-100 text-orange-600',
+              'bg-pink-100 text-pink-600'
+            ];
+            // Use subject ID as key, but display actual name
+            mergedProgress.set(subjectId, {
+              progress: progress,
+              name: subjectName,
+              color: colors[Math.floor(Math.random() * colors.length)],
+              currentTopic: `${subjectName} - Learning Path`
+            });
+          }
+        });
+
+        // Convert to array
+        const finalProgressArray = Array.from(mergedProgress.values());
+
+        // Calculate overall progress as average of all subject progress
+        const calculatedOverallProgress = finalProgressArray.length > 0
+          ? Math.round(finalProgressArray.reduce((sum, s) => sum + s.progress, 0) / finalProgressArray.length)
+          : 0;
+
         // If no subject progress from exams, set default empty
-        if (progressArray.length === 0) {
+        if (finalProgressArray.length === 0) {
           setSubjectProgress([]);
+          setOverallProgress(0);
         } else {
-          setSubjectProgress(progressArray);
+          setSubjectProgress(finalProgressArray);
+          setOverallProgress(calculatedOverallProgress);
         }
 
         // Set calculated stats
@@ -369,40 +539,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Content Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
-
-          {/* Asli Prep Exclusive Section */}
-          <Card className="hover:shadow-lg transition-shadow duration-200 border-2 border-gradient-to-r from-purple-200 to-pink-200">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
-                  <Award className="w-5 h-5 mr-2 text-purple-600" />
-                  Asli Learn Exclusive
-                </CardTitle>
-                <Badge variant="outline" className="bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 border-purple-200">
-                  Premium
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="text-center py-4">
-                  <Award className="w-12 h-12 text-purple-600 mx-auto mb-2" />
-                  <p className="text-sm text-gray-700 font-medium mb-2">Exclusive Study Materials</p>
-                  <p className="text-xs text-gray-600 mb-4">
-                    Premium content created by Super Admin for your board
-                  </p>
-                  <Link to="/asli-prep-content">
-                    <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">
-                      Explore Asli Learn Exclusive
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -410,11 +546,11 @@ export default function Dashboard() {
           {/* Left Column: Learning Path & Content */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* AI-Powered Learning Path */}
+            {/* Learning Progress */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Your AI-Powered Learning Path</CardTitle>
+                  <CardTitle>Your Learning Progress</CardTitle>
                   <Badge className="gradient-primary text-white">
                     {user?.educationStream || 'JEE'} 2024
                   </Badge>
@@ -425,9 +561,9 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-responsive-xs font-medium text-gray-700">Overall Progress</span>
-                    <span className="text-responsive-xs font-medium text-primary">68%</span>
+                    <span className="text-responsive-xs font-medium text-primary">{overallProgress}%</span>
                   </div>
-                  <Progress value={68} className="h-3" />
+                  <Progress value={overallProgress} className="h-3" />
                 </div>
 
                 {/* Subject Progress */}
@@ -566,10 +702,7 @@ export default function Dashboard() {
             {/* Performance Dashboard */}
             <ProgressChart 
               subjects={subjectProgress.length > 0 ? subjectProgress : []}
-              overallProgress={subjectProgress.length > 0 
-                ? Math.round(subjectProgress.reduce((sum, s) => sum + s.progress, 0) / subjectProgress.length)
-                : 0
-              }
+              overallProgress={overallProgress}
             />
 
             {/* Quick Actions */}

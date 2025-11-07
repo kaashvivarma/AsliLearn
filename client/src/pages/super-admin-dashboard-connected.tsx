@@ -50,6 +50,13 @@ type SuperAdminView = 'dashboard' | 'admin-management' | 'users' | 'content' | '
 export default function SuperAdminDashboard() {
   const [currentView, setCurrentView] = useState<SuperAdminView>('dashboard');
   const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [newAdmin, setNewAdmin] = useState({
+    name: '',
+    email: '',
+    board: '',
+    schoolName: '',
+    permissions: [] as string[]
+  });
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showCreateCourseModal, setShowCreateCourseModal] = useState(false);
   const [user, setUser] = useState(null);
@@ -206,6 +213,7 @@ export default function SuperAdminDashboard() {
           description: "New admin created successfully!",
         });
         setShowAddAdminModal(false);
+        setNewAdmin({ name: '', email: '', board: '', schoolName: '', permissions: [] });
         refetchAdmins();
       } else {
         toast({
@@ -1179,21 +1187,74 @@ export default function SuperAdminDashboard() {
             <CardContent>
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target as HTMLFormElement);
+                
+                // Validate required fields
+                if (!newAdmin.name || !newAdmin.email || !newAdmin.board || !newAdmin.schoolName) {
+                  toast({
+                    title: "Validation Error",
+                    description: "Please fill in all required fields: Name, Email, Board, and School Name.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                
                 handleAddAdmin({
-                  name: formData.get('name'),
-                  email: formData.get('email'),
-                  permissions: Array.from(formData.getAll('permissions'))
+                  name: newAdmin.name,
+                  email: newAdmin.email,
+                  board: newAdmin.board,
+                  schoolName: newAdmin.schoolName,
+                  permissions: newAdmin.permissions
                 });
               }}>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input name="name" type="text" required placeholder="Enter full name" />
+                    <Label htmlFor="name">Full Name <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="name"
+                      value={newAdmin.name}
+                      onChange={(e) => setNewAdmin({ ...newAdmin, name: e.target.value })}
+                      required 
+                      placeholder="Enter full name" 
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input name="email" type="email" required placeholder="Enter email address" />
+                    <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="email"
+                      type="email"
+                      value={newAdmin.email}
+                      onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
+                      required 
+                      placeholder="Enter email address" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="board">Board <span className="text-red-500">*</span></Label>
+                    <Select 
+                      value={newAdmin.board}
+                      onValueChange={(value) => setNewAdmin({ ...newAdmin, board: value })}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select board" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CBSE_AP">CBSE Andhra Pradesh</SelectItem>
+                        <SelectItem value="CBSE_TS">CBSE Telangana</SelectItem>
+                        <SelectItem value="STATE_AP">State Board Andhra Pradesh</SelectItem>
+                        <SelectItem value="STATE_TS">State Board Telangana</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="schoolName">School Name <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="schoolName"
+                      value={newAdmin.schoolName}
+                      onChange={(e) => setNewAdmin({ ...newAdmin, schoolName: e.target.value })}
+                      required 
+                      placeholder="Enter school name" 
+                    />
                   </div>
                   <div>
                     <Label>Permissions</Label>
@@ -1202,8 +1263,14 @@ export default function SuperAdminDashboard() {
                         <div key={permission} className="flex items-center space-x-2">
                           <input 
                             type="checkbox" 
-                            name="permissions" 
-                            value={permission} 
+                            checked={newAdmin.permissions.includes(permission)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setNewAdmin({ ...newAdmin, permissions: [...newAdmin.permissions, permission] });
+                              } else {
+                                setNewAdmin({ ...newAdmin, permissions: newAdmin.permissions.filter(p => p !== permission) });
+                              }
+                            }}
                             id={permission}
                             className="rounded"
                           />
@@ -1214,7 +1281,17 @@ export default function SuperAdminDashboard() {
                   </div>
                   <div className="flex space-x-2 pt-4">
                     <Button type="submit" className="flex-1">Create Admin</Button>
-                    <Button type="button" variant="outline" className="flex-1" onClick={() => setShowAddAdminModal(false)}>Cancel</Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="flex-1" 
+                      onClick={() => {
+                        setShowAddAdminModal(false);
+                        setNewAdmin({ name: '', email: '', board: '', schoolName: '', permissions: [] });
+                      }}
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </div>
               </form>

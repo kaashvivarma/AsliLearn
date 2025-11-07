@@ -111,18 +111,6 @@ export default function ProgressChart({ subjects, overallProgress, className }: 
             <li>• Review weak topics</li>
           </ul>
         </div>
-
-        {/* Study Streak */}
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-100">
-          <div>
-            <h4 className="font-medium text-orange-900">Study Streak</h4>
-            <p className="text-sm text-orange-800">Keep up the great work!</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-900">12</div>
-            <div className="text-xs text-orange-700">days</div>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

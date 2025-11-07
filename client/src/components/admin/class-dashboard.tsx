@@ -18,14 +18,15 @@ import {
   Plus, 
   Search, 
   Filter,
-  Edit,
   Trash2,
   UserPlus,
   Calendar,
   Clock,
   Target,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -40,13 +41,30 @@ interface Student {
   lastLogin?: string;
 }
 
+interface Teacher {
+  id: string;
+  name: string;
+  email: string;
+}
+
 interface Class {
   id: string;
   name: string;
   description: string;
+  classNumber: string;
+  section?: string;
+  assignedSubjects?: Array<{
+    _id: string;
+    id: string;
+    name: string;
+    description?: string;
+    code?: string;
+    board?: string;
+  }>;
   subject: string;
   grade: string;
   teacher: string;
+  teachers?: Teacher[];
   schedule: string;
   room: string;
   studentCount: number;
@@ -74,24 +92,80 @@ const ClassDashboard = () => {
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [newClass, setNewClass] = useState({
-    name: '',
-    description: '',
-    subject: '',
-    grade: '',
-    teacher: '',
-    schedule: '',
-    room: ''
+    classNumber: '',
+    section: '',
+    description: ''
   });
   // Assign Subjects state
   const [selectedClassForSubjects, setSelectedClassForSubjects] = useState<string>('');
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
-  const [isSavingSubjects, setIsSavingSubjects] = useState(false);
-  const [isLoadingClassSubjects, setIsLoadingClassSubjects] = useState(false);
+  const [isAssigningSubjects, setIsAssigningSubjects] = useState(false);
 
   useEffect(() => {
     fetchClasses();
     fetchSubjects();
   }, []);
+
+  // When a class number is selected, pre-populate selectedSubjectIds with already assigned subjects
+  useEffect(() => {
+    console.log('useEffect triggered - selectedClassForSubjects:', selectedClassForSubjects, 'classes.length:', classes.length, 'subjects.length:', subjects.length);
+    
+    if (selectedClassForSubjects && classes.length > 0 && subjects.length > 0) {
+      // Find all classes with this classNumber
+      const classesWithThisNumber = classes.filter(c => c.classNumber === selectedClassForSubjects);
+      console.log('Classes with this number:', classesWithThisNumber.length, classesWithThisNumber.map(c => ({ 
+        classNumber: c.classNumber, 
+        section: c.section,
+        hasAssignedSubjects: !!c.assignedSubjects,
+        assignedSubjectsCount: c.assignedSubjects?.length || 0
+      })));
+      
+      if (classesWithThisNumber.length > 0) {
+        // Get assigned subjects from the first class (all sections should have the same subjects)
+        const firstClass = classesWithThisNumber[0];
+        console.log('First class assignedSubjects:', firstClass.assignedSubjects);
+        
+        if (firstClass.assignedSubjects && firstClass.assignedSubjects.length > 0) {
+          // Extract subject IDs - need to match with the subjects array format
+          // The assignedSubjects from class have id or _id, and we need to match them with subjects array
+          const assignedSubjectIds = firstClass.assignedSubjects.map(subj => {
+            const subjectId = subj.id || subj._id;
+            console.log('Matching subject:', { subjectId, subjName: subj.name });
+            
+            // Find matching subject in the subjects array to ensure ID format matches
+            const matchingSubject = subjects.find(s => {
+              const match = s.id === subjectId || s._id === subjectId || 
+                           s.id === subj._id || s._id === subj._id ||
+                           String(s.id) === String(subjectId) || String(s._id) === String(subjectId);
+              if (match) {
+                console.log('Found match:', { subjectId, matchedId: s.id || s._id, subjectName: s.name });
+              }
+              return match;
+            });
+            
+            const finalId = matchingSubject ? (matchingSubject.id || matchingSubject._id) : subjectId;
+            console.log('Final ID for subject:', subj.name, '->', finalId);
+            return finalId;
+          }).filter(id => id); // Filter out any undefined/null values
+          
+          console.log('Setting selectedSubjectIds to:', assignedSubjectIds);
+          setSelectedSubjectIds(assignedSubjectIds);
+        } else {
+          // No subjects assigned yet, clear selection
+          console.log('No assigned subjects found, clearing selection');
+          setSelectedSubjectIds([]);
+        }
+      } else {
+        // Class not found, clear selection
+        console.log('Class not found, clearing selection');
+        setSelectedSubjectIds([]);
+      }
+    } else if (!selectedClassForSubjects) {
+      // No class selected, clear selection
+      console.log('No class selected, clearing selection');
+      setSelectedSubjectIds([]);
+    }
+  }, [selectedClassForSubjects, classes, subjects]);
 
   const fetchSubjects = async () => {
     try {
@@ -168,19 +242,28 @@ const ClassDashboard = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
+      const responseData = await response.json();
       
-      if (!Array.isArray(data)) {
-        console.error('Expected array but got:', data);
+      // Handle different response formats
+      let data = responseData;
+      if (responseData && Array.isArray(responseData.data)) {
+        data = responseData.data;
+      } else if (responseData && Array.isArray(responseData)) {
+        data = responseData;
+      } else {
+        console.error('Expected array but got:', responseData);
         throw new Error('Invalid data format received from server');
       }
       
       // Use the data directly from backend (already grouped by class)
       console.log('Classes data received:', data);
-      console.log('Classes with students:', data.map(c => ({ 
+      console.log('Classes with classNumber and assignedSubjects:', data.map(c => ({ 
+        id: c.id,
         name: c.name, 
-        studentCount: c.studentCount, 
-        students: c.students?.length || 0 
+        classNumber: c.classNumber,
+        section: c.section,
+        studentCount: c.studentCount,
+        assignedSubjects: c.assignedSubjects ? c.assignedSubjects.map(s => ({ id: s.id, name: s.name })) : []
       })));
       setClasses(data);
     } catch (error) {
@@ -220,26 +303,52 @@ const ClassDashboard = () => {
   const handleAddClass = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!newClass.classNumber || !newClass.section) {
+      alert('Please fill in all required fields: Class Number and Section.');
+      return;
+    }
+    
     try {
-      const response = await fetch('/api/admin/classes', {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/admin/classes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(newClass)
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          classNumber: newClass.classNumber.trim(),
+          section: newClass.section,
+          description: newClass.description.trim()
+        })
       });
 
-      if (response.ok) {
-        setNewClass({ name: '', description: '', subject: '', grade: '', teacher: '', schedule: '', room: '' });
+      const responseData = await response.json();
+      
+      if (response.ok && responseData.success !== false) {
+        setNewClass({ classNumber: '', section: '', description: '' });
         setIsAddClassDialogOpen(false);
         fetchClasses();
-        alert('Class created successfully!');
+        toast({
+          title: 'Success',
+          description: 'Class created successfully!',
+          variant: 'default'
+        });
       } else {
-        const errorData = await response.json();
-        alert(`Failed to create class: ${errorData.message || 'Unknown error'}`);
+        toast({
+          title: 'Error',
+          description: responseData.message || 'Failed to create class. Please try again.',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Failed to create class:', error);
-      alert('Failed to create class. Please try again.');
+      toast({
+        title: 'Error',
+        description: 'Failed to create class. Please try again.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -249,21 +358,38 @@ const ClassDashboard = () => {
     }
 
     try {
-      const response = await fetch(`/api/admin/classes/${classId}`, {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/admin/classes/${classId}`, {
         method: 'DELETE',
-        credentials: 'include'
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
-      if (response.ok) {
+      const responseData = await response.json();
+
+      if (response.ok && responseData.success !== false) {
         fetchClasses();
-        alert('Class deleted successfully!');
+        toast({
+          title: 'Success',
+          description: 'Class deleted successfully!',
+          variant: 'default'
+        });
       } else {
-        const errorData = await response.json();
-        alert(`Failed to delete class: ${errorData.message || 'Unknown error'}`);
+        toast({
+          title: 'Error',
+          description: responseData.message || 'Failed to delete class. Please try again.',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Failed to delete class:', error);
-      alert('Failed to delete class. Please try again.');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete class. Please try again.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -277,79 +403,47 @@ const ClassDashboard = () => {
     }
   };
 
-  const fetchClassSubjects = async (classNumber: string) => {
-    if (!classNumber) return;
-    
-    setIsLoadingClassSubjects(true);
-    try {
-      const token = localStorage.getItem('authToken');
-      // URL encode the classNumber to handle special characters
-      const encodedClassNumber = encodeURIComponent(classNumber);
-      const url = `${API_BASE_URL}/api/admin/classes/${encodedClassNumber}/subjects`;
-      console.log('Fetching class subjects for:', classNumber, 'URL:', url);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data && data.data.subjects) {
-          // Extract subject IDs from the populated subjects
-          const subjectIds = data.data.subjects.map((s: any) => s._id || s.id);
-          setSelectedSubjectIds(subjectIds);
-        } else {
-          setSelectedSubjectIds([]);
-        }
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to fetch class subjects - Status:', response.status, 'Response:', errorText);
-        setSelectedSubjectIds([]);
-      }
-    } catch (error) {
-      console.error('Failed to fetch class subjects:', error);
-      setSelectedSubjectIds([]);
-    } finally {
-      setIsLoadingClassSubjects(false);
-    }
-  };
-
-  const handleSaveClassSubjects = async () => {
+  const handleAssignSubjects = async () => {
     if (!selectedClassForSubjects) {
       toast({
         title: 'Validation Error',
-        description: 'Please select a class',
+        description: 'Please select a class number',
         variant: 'destructive'
       });
       return;
     }
 
-    setIsSavingSubjects(true);
+    if (selectedSubjectIds.length === 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select at least one subject',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsAssigningSubjects(true);
     try {
       const token = localStorage.getItem('authToken');
-      const selectedClassData = classes.find(c => c.id === selectedClassForSubjects);
       
-      if (!selectedClassData) {
+      // selectedClassForSubjects is now the classNumber (e.g., "10")
+      const classNumber = selectedClassForSubjects.trim();
+      
+      // Validate that we have a valid class number (not an ObjectId)
+      if (!classNumber || classNumber.length > 10) {
         toast({
-          title: 'Error',
-          description: 'Class not found',
+          title: 'Validation Error',
+          description: 'Invalid class number selected. Please select a valid class number.',
           variant: 'destructive'
         });
-        setIsSavingSubjects(false);
+        setIsAssigningSubjects(false);
         return;
       }
 
-      // The id is the classNumber (e.g., "9", "10A", etc.)
-      const classNumber = selectedClassData.id;
-      // URL encode the classNumber to handle special characters
-      const encodedClassNumber = encodeURIComponent(classNumber);
-      const url = `${API_BASE_URL}/api/admin/classes/${encodedClassNumber}/subjects`;
-      console.log('Saving class subjects for:', classNumber, 'URL:', url, 'Subject IDs:', selectedSubjectIds);
+      console.log('Assigning subjects to class number:', classNumber);
 
-      const response = await fetch(url, {
+      // Save subjects for all sections of this class number in the database
+      const response = await fetch(`${API_BASE_URL}/api/admin/classes/${encodeURIComponent(classNumber)}/assign-subjects`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -358,46 +452,37 @@ const ClassDashboard = () => {
         body: JSON.stringify({ subjectIds: selectedSubjectIds })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          toast({
-            title: 'Success',
-            description: `Subjects saved for ${selectedClassData.name}`,
-          });
-        } else {
-          toast({
-            title: 'Error',
-            description: data.message || 'Failed to save subjects',
-            variant: 'destructive'
-          });
-        }
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Count sections that were updated
+        const sectionsForClass = classes.filter(c => c.classNumber === classNumber);
+        const sectionCount = sectionsForClass.length;
+        toast({
+          title: 'Success',
+          description: `Subjects assigned to all sections of Class ${classNumber} (${sectionCount} section${sectionCount !== 1 ? 's' : ''}) successfully`,
+        });
+        // Reset form
+        setSelectedClassForSubjects('');
+        setSelectedSubjectIds([]);
+        // Refresh classes to show updated data
+        fetchClasses();
       } else {
-        const errorText = await response.text();
-        console.error('Failed to save class subjects - Status:', response.status, 'Response:', errorText);
-        let errorMessage = 'Failed to save subjects';
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // If response is not JSON, use the text or default message
-          errorMessage = errorText.includes('<!DOCTYPE') ? 'Server error - check server logs' : errorMessage;
-        }
         toast({
           title: 'Error',
-          description: errorMessage,
+          description: data.message || 'Failed to assign subjects to classes',
           variant: 'destructive'
         });
       }
     } catch (error) {
-      console.error('Failed to save class subjects:', error);
+      console.error('Failed to assign subjects:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save subjects',
+        description: 'Failed to assign subjects to classes',
         variant: 'destructive'
       });
     } finally {
-      setIsSavingSubjects(false);
+      setIsAssigningSubjects(false);
     }
   };
 
@@ -407,21 +492,6 @@ const ClassDashboard = () => {
         ? prev.filter(id => id !== subjectId)
         : [...prev, subjectId]
     );
-  };
-
-  const handleClassChange = (classId: string) => {
-    setSelectedClassForSubjects(classId);
-    if (classId) {
-      const selectedClassData = classes.find(c => c.id === classId);
-      if (selectedClassData) {
-        // The class id is the classNumber (e.g., "9", "10A", etc.)
-        // Use it directly as it matches what's stored in the database
-        console.log('Class selected - ID:', selectedClassData.id, 'Name:', selectedClassData.name);
-        fetchClassSubjects(selectedClassData.id);
-      }
-    } else {
-      setSelectedSubjectIds([]);
-    }
   };
 
   const filteredClasses = classes.filter(classItem => {
@@ -598,45 +668,182 @@ const ClassDashboard = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <Button 
+                  onClick={() => setIsAddClassDialogOpen(true)}
+                  className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-xl"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Class
+                </Button>
               </div>
             </div>
 
             {/* Classes Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClasses.map((classItem, index) => {
-            const isExpanded = expandedClassId === classItem.id;
-            return (
-            <motion.div
-              key={classItem.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className={`group relative overflow-hidden bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 border ${
-                isExpanded ? 'border-sky-400 border-2' : 'border-white/20'
-              } cursor-pointer`}
-              onClick={() => handleClassCardClick(classItem.id)}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-sky-400/10 to-blue-500/10 backdrop-blur-sm"></div>
-              <div className="relative z-10 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-white/40 rounded-xl backdrop-blur-sm">
-                      <GraduationCap className="w-6 h-6 text-sky-600" />
+          {filteredClasses.length > 0 ? (
+            filteredClasses.map((classItem, index) => {
+              const isExpanded = expandedClassId === classItem.id;
+              return (
+              <motion.div
+                key={classItem.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className={`group relative overflow-hidden bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 border ${
+                  isExpanded ? 'border-sky-400 border-2' : 'border-white/20'
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-sky-400/10 to-blue-500/10 backdrop-blur-sm"></div>
+                <div className="relative z-10 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-3 bg-white/40 rounded-xl backdrop-blur-sm">
+                        <GraduationCap className="w-6 h-6 text-sky-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sky-900 text-lg">
+                          {classItem.name || `Class ${classItem.classNumber}${classItem.section || ''}`}
+                        </h3>
+                        {classItem.description && (
+                          <p className="text-sky-700 text-sm mt-1">{classItem.description}</p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-sky-900 text-lg">{classItem.name}</h3>
-                      <p className="text-sky-700 text-sm">{classItem.subject}</p>
+                    <Badge className="bg-green-100 text-green-800">Active</Badge>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center text-sky-700">
+                        <Users className="w-4 h-4 mr-3 text-sky-600" />
+                        <span>Students:</span>
+                      </div>
+                      <span className="font-medium text-sky-900">{classItem.studentCount || 0}</span>
+                    </div>
+                    {classItem.teachers && classItem.teachers.length > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center text-sky-700">
+                          <UserPlus className="w-4 h-4 mr-3 text-sky-600" />
+                          <span>Teachers:</span>
+                        </div>
+                        <span className="font-medium text-sky-900">
+                          {classItem.teachers.length} {classItem.teachers.length === 1 ? 'teacher' : 'teachers'}
+                        </span>
+                      </div>
+                    )}
+                    {(!classItem.teachers || classItem.teachers.length === 0) && (
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center text-sky-700">
+                          <UserPlus className="w-4 h-4 mr-3 text-sky-600" />
+                          <span>Teachers:</span>
+                        </div>
+                        <span className="font-medium text-sky-500 text-xs">No teachers assigned</span>
+                      </div>
+                    )}
+                    {classItem.schedule && (
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center text-sky-700">
+                          <Calendar className="w-4 h-4 mr-3 text-sky-600" />
+                          <span>Schedule:</span>
+                        </div>
+                        <span className="font-medium text-sky-900">{classItem.schedule}</span>
+                      </div>
+                    )}
+                    {classItem.room && (
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center text-sky-700">
+                          <BookOpen className="w-4 h-4 mr-3 text-sky-600" />
+                          <span>Room:</span>
+                        </div>
+                        <span className="font-medium text-sky-900">{classItem.room}</span>
+                      </div>
+                    )}
+                    {classItem.section && (
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center text-sky-700">
+                          <GraduationCap className="w-4 h-4 mr-3 text-sky-600" />
+                          <span>Section:</span>
+                        </div>
+                        <span className="font-medium text-sky-900">{classItem.section}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Teachers List */}
+                  {classItem.teachers && classItem.teachers.length > 0 && (
+                    <div className="space-y-2 mb-4">
+                      <h4 className="font-semibold text-sky-900 text-sm">Assigned Teachers:</h4>
+                      <div className="space-y-2">
+                        {classItem.teachers.map(teacher => (
+                          <div key={teacher.id} className="flex items-center justify-between bg-sky-50 rounded-lg p-2 hover:bg-sky-100 transition-colors border border-sky-200">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                {teacher.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-sky-900">{teacher.name}</p>
+                                <p className="text-xs text-sky-600">{teacher.email}</p>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="border-sky-300 text-sky-700 bg-sky-100 text-xs">
+                              Teacher
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold text-sky-900 text-sm">Students List:</h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-sky-200 text-sky-700 hover:bg-sky-50 text-xs"
+                        onClick={() => handleClassCardClick(classItem.id)}
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp className="w-3 h-3 mr-1" />
+                            Hide
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-3 h-3 mr-1" />
+                            View
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <div className={`space-y-1 transition-all duration-300 ${
+                      isExpanded ? 'max-h-64 overflow-y-auto' : 'max-h-0 overflow-hidden'
+                    }`}>
+                      {classItem.students && classItem.students.length > 0 ? (
+                        classItem.students.map(student => (
+                        <div key={student.id} className="flex items-center justify-between bg-white/50 rounded-lg p-2 hover:bg-white/70 transition-colors">
+                          <div>
+                            <p className="text-sm font-medium text-sky-900">{student.name}</p>
+                            <p className="text-xs text-sky-600">{student.email}</p>
+                          </div>
+                          <Badge variant="outline" className={`text-xs ${
+                            student.status === 'active' 
+                              ? 'border-green-200 text-green-700 bg-green-50' 
+                              : 'border-gray-200 text-gray-700 bg-gray-50'
+                          }`}>
+                            {student.status}
+                          </Badge>
+                        </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-sky-600 text-center py-2">
+                          No students assigned to this class
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="border-sky-200 text-sky-700 hover:bg-sky-50"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                  
+                  <div className="flex justify-end mt-4 pt-4 border-t border-sky-200">
                     <Button 
                       size="sm" 
                       variant="outline" 
@@ -646,61 +853,21 @@ const ClassDashboard = () => {
                         handleDeleteClass(classItem.id);
                       }}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
                     </Button>
                   </div>
                 </div>
-                
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center text-sm text-sky-700">
-                    <Users className="w-4 h-4 mr-3 text-sky-600" />
-                    <span>{classItem.studentCount} students</span>
-                  </div>
-                  <div className="flex items-center text-sm text-sky-700">
-                    <Calendar className="w-4 h-4 mr-3 text-sky-600" />
-                    <span>{classItem.schedule}</span>
-                  </div>
-                  <div className="flex items-center text-sm text-sky-700">
-                    <BookOpen className="w-4 h-4 mr-3 text-sky-600" />
-                    <span>{classItem.room}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-sky-900 text-sm">Students:</h4>
-                    {isExpanded && (
-                      <Badge variant="outline" className="text-xs border-sky-300 text-sky-700 bg-sky-50">
-                        Expanded
-                      </Badge>
-                    )}
-                  </div>
-                  <div className={`space-y-1 transition-all duration-300 ${
-                    isExpanded ? 'max-h-none' : 'max-h-32 overflow-y-auto'
-                  }`}>
-                    {classItem.students && classItem.students.length > 0 ? (
-                      classItem.students.map(student => (
-                      <div key={student.id} className="flex items-center justify-between bg-white/50 rounded-lg p-2 hover:bg-white/70 transition-colors">
-                        <div>
-                          <p className="text-sm font-medium text-sky-900">{student.name}</p>
-                          <p className="text-xs text-sky-600">{student.email}</p>
-                        </div>
-                        <Badge variant="outline" className="text-xs border-sky-200 text-sky-700">
-                          {student.status}
-                        </Badge>
-                      </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-sky-600 text-center py-2">
-                        No students assigned to this class
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-            );
-          })}
+              </motion.div>
+              );
+            })
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <GraduationCap className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 text-lg mb-2">No classes found</p>
+              <p className="text-gray-500 text-sm">Create your first class by clicking the "Add Class" button above</p>
+            </div>
+          )}
           </div>
           </TabsContent>
 
@@ -710,52 +877,70 @@ const ClassDashboard = () => {
                 <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-500 bg-clip-text text-transparent">
                   Assign Subjects to Class
                 </CardTitle>
-                <p className="text-gray-600 mt-2">Select a class and choose which subjects are assigned to that class</p>
+                <p className="text-gray-600 mt-2">Select a class and assign subjects to all students in that class</p>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <Label htmlFor="class-select" className="text-base font-semibold mb-2 block">Select Class *</Label>
-                  <Select value={selectedClassForSubjects} onValueChange={handleClassChange}>
+                  <Label htmlFor="class-select" className="text-base font-semibold mb-2 block">Select Class Number *</Label>
+                  <Select value={selectedClassForSubjects} onValueChange={setSelectedClassForSubjects}>
                     <SelectTrigger id="class-select" className="w-full">
-                      <SelectValue placeholder="Choose a class" />
+                      <SelectValue placeholder="Choose a class number" />
                     </SelectTrigger>
                     <SelectContent>
-                      {classes.map(classItem => (
-                        <SelectItem key={classItem.id} value={classItem.id}>
-                          {classItem.name} ({classItem.studentCount} students)
-                        </SelectItem>
-                      ))}
+                      {Array.from(new Set(classes.map(c => c.classNumber).filter(cn => cn))) // Filter out undefined/null
+                        .sort((a, b) => {
+                          // Sort numerically if both are numbers, otherwise alphabetically
+                          const numA = parseInt(a);
+                          const numB = parseInt(b);
+                          if (!isNaN(numA) && !isNaN(numB)) {
+                            return numA - numB;
+                          }
+                          return a.localeCompare(b);
+                        })
+                        .map(classNumber => {
+                          // Count total students across all sections of this class number
+                          const sectionsForClass = classes.filter(c => c.classNumber === classNumber);
+                          const totalStudents = sectionsForClass.reduce((sum, c) => sum + (c.studentCount || 0), 0);
+                          const sectionCount = sectionsForClass.length;
+                          return (
+                            <SelectItem key={classNumber} value={classNumber}>
+                              Class {classNumber} ({sectionCount} section{sectionCount !== 1 ? 's' : ''}, {totalStudents} students)
+                            </SelectItem>
+                          );
+                        })}
                     </SelectContent>
                   </Select>
+                  {selectedClassForSubjects && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      Subjects will be assigned to all sections of Class {selectedClassForSubjects} (A, B, C)
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <Label className="text-base font-semibold mb-4 block">Select Subjects</Label>
-                  {isLoadingClassSubjects ? (
-                    <div className="text-center py-8 bg-gray-50 rounded-xl">
-                      <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                      <p className="text-gray-600">Loading subjects...</p>
-                    </div>
-                  ) : subjects.length === 0 ? (
+                  <Label className="text-base font-semibold mb-4 block">Select Subjects *</Label>
+                  {subjects.length === 0 ? (
                     <div className="text-center py-8 bg-gray-50 rounded-xl">
                       <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-600">No subjects available. Please create subjects first.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto p-4 bg-gray-50 rounded-xl">
-                      {subjects.map(subject => (
+                      {subjects.map(subject => {
+                        const isSelected = selectedSubjectIds.includes(subject.id) || selectedSubjectIds.includes(subject._id);
+                        return (
                         <div
-                          key={subject.id}
+                          key={subject.id || subject._id}
                           className={`flex items-center space-x-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                            selectedSubjectIds.includes(subject.id)
+                            isSelected
                               ? 'border-purple-500 bg-purple-50'
                               : 'border-gray-200 bg-white hover:border-purple-300'
                           }`}
-                          onClick={() => handleSubjectToggle(subject.id)}
+                          onClick={() => handleSubjectToggle(subject.id || subject._id)}
                         >
                           <Checkbox
-                            checked={selectedSubjectIds.includes(subject.id)}
-                            onCheckedChange={() => handleSubjectToggle(subject.id)}
+                            checked={isSelected}
+                            onCheckedChange={() => handleSubjectToggle(subject.id || subject._id)}
                           />
                           <div className="flex-1">
                             <p className="font-semibold text-gray-900">{subject.name}</p>
@@ -767,7 +952,8 @@ const ClassDashboard = () => {
                             )}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   {selectedSubjectIds.length > 0 && (
@@ -796,16 +982,16 @@ const ClassDashboard = () => {
                       setSelectedClassForSubjects('');
                       setSelectedSubjectIds([]);
                     }}
-                    disabled={isSavingSubjects}
+                    disabled={isAssigningSubjects}
                   >
                     Clear
                   </Button>
                   <Button
-                    onClick={handleSaveClassSubjects}
-                    disabled={!selectedClassForSubjects || isSavingSubjects}
+                    onClick={handleAssignSubjects}
+                    disabled={!selectedClassForSubjects || selectedSubjectIds.length === 0 || isAssigningSubjects}
                     className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                   >
-                    {isSavingSubjects ? 'Saving...' : 'Save'}
+                    {isAssigningSubjects ? 'Saving...' : 'Save'}
                   </Button>
                 </div>
               </CardContent>
@@ -825,74 +1011,47 @@ const ClassDashboard = () => {
             <form onSubmit={handleAddClass} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="className" className="text-sm font-medium text-sky-800">Class Name</Label>
+                  <Label htmlFor="classNumber" className="text-sm font-medium text-sky-800">
+                    Class Number <span className="text-red-500">*</span>
+                  </Label>
                   <Input
-                    id="className"
-                    value={newClass.name}
-                    onChange={(e) => setNewClass({ ...newClass, name: e.target.value })}
+                    id="classNumber"
+                    value={newClass.classNumber}
+                    onChange={(e) => setNewClass({ ...newClass, classNumber: e.target.value })}
                     className="rounded-xl bg-white/70 border-sky-200 text-sky-900 backdrop-blur-sm"
                     required
+                    placeholder="e.g., 10, 11, 12"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="subject" className="text-sm font-medium text-sky-800">Subject</Label>
-                  <Input
-                    id="subject"
-                    value={newClass.subject}
-                    onChange={(e) => setNewClass({ ...newClass, subject: e.target.value })}
-                    className="rounded-xl bg-white/70 border-sky-200 text-sky-900 backdrop-blur-sm"
+                  <Label htmlFor="section" className="text-sm font-medium text-sky-800">
+                    Section <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={newClass.section}
+                    onValueChange={(value) => setNewClass({ ...newClass, section: value })}
                     required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="grade" className="text-sm font-medium text-sky-800">Grade</Label>
-                  <Input
-                    id="grade"
-                    value={newClass.grade}
-                    onChange={(e) => setNewClass({ ...newClass, grade: e.target.value })}
-                    className="rounded-xl bg-white/70 border-sky-200 text-sky-900 backdrop-blur-sm"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="teacher" className="text-sm font-medium text-sky-800">Teacher</Label>
-                  <Input
-                    id="teacher"
-                    value={newClass.teacher}
-                    onChange={(e) => setNewClass({ ...newClass, teacher: e.target.value })}
-                    className="rounded-xl bg-white/70 border-sky-200 text-sky-900 backdrop-blur-sm"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="schedule" className="text-sm font-medium text-sky-800">Schedule</Label>
-                  <Input
-                    id="schedule"
-                    value={newClass.schedule}
-                    onChange={(e) => setNewClass({ ...newClass, schedule: e.target.value })}
-                    className="rounded-xl bg-white/70 border-sky-200 text-sky-900 backdrop-blur-sm"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="room" className="text-sm font-medium text-sky-800">Room</Label>
-                  <Input
-                    id="room"
-                    value={newClass.room}
-                    onChange={(e) => setNewClass({ ...newClass, room: e.target.value })}
-                    className="rounded-xl bg-white/70 border-sky-200 text-sky-900 backdrop-blur-sm"
-                    required
-                  />
+                  >
+                    <SelectTrigger className="rounded-xl bg-white/70 border-sky-200 text-sky-900 backdrop-blur-sm">
+                      <SelectValue placeholder="Select section" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A">Section A</SelectItem>
+                      <SelectItem value="B">Section B</SelectItem>
+                      <SelectItem value="C">Section C</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-sm font-medium text-sky-800">Description</Label>
+                <Label htmlFor="description" className="text-sm font-medium text-sky-800">Description (Optional)</Label>
                 <Textarea
                   id="description"
                   value={newClass.description}
                   onChange={(e) => setNewClass({ ...newClass, description: e.target.value })}
                   className="rounded-xl bg-white/70 border-sky-200 text-sky-900 backdrop-blur-sm"
                   rows={3}
+                  placeholder="Optional description for this class"
                 />
               </div>
               <div className="flex justify-end space-x-3">

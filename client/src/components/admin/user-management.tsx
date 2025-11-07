@@ -14,16 +14,13 @@ import {
   Plus, 
   Search, 
   Filter, 
-  Edit, 
   Trash2, 
-  Eye, 
   Upload, 
   Download, 
   UserPlus,
   FileSpreadsheet,
   CheckCircle,
   XCircle,
-  MoreHorizontal,
   Mail,
   Phone,
   Calendar,
@@ -40,6 +37,7 @@ interface Student {
   status: 'active' | 'inactive';
   createdAt: string;
   lastLogin?: string;
+  assignedClass?: string;
 }
 
 const UserManagement = () => {
@@ -59,15 +57,38 @@ const UserManagement = () => {
     classNumber: '',
     phone: ''
   });
+  const [isAssignClassDialogOpen, setIsAssignClassDialogOpen] = useState(false);
+  const [selectedStudentForClass, setSelectedStudentForClass] = useState<Student | null>(null);
+  const [availableClasses, setAvailableClasses] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStudents();
+    fetchClasses();
   }, []);
+
+  const fetchClasses = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/admin/classes`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableClasses(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch classes:', error);
+    }
+  };
 
   const fetchStudents = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/students`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -78,11 +99,14 @@ const UserManagement = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
+      const responseData = await response.json();
+      
+      // Backend returns { success: true, data: [...] } format
+      const data = responseData.data || responseData;
       
       // Check if data is an array
       if (!Array.isArray(data)) {
-        console.error('Expected array but got:', data);
+        console.error('Expected array but got:', responseData);
         throw new Error('Invalid data format received from server');
       }
       
@@ -95,7 +119,8 @@ const UserManagement = () => {
         phone: user.phone || '',
         status: user.isActive ? 'active' : 'inactive',
         createdAt: user.createdAt || new Date().toISOString(),
-        lastLogin: user.lastLogin || null
+        lastLogin: user.lastLogin || null,
+        assignedClass: user.assignedClass?._id || user.assignedClass || null
       }));
       
       setStudents(mappedStudents);
@@ -129,25 +154,41 @@ const UserManagement = () => {
 
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!newStudent.name || !newStudent.email || !newStudent.classNumber) {
+      alert('Please fill in all required fields: Full Name, Email, and Class Number.');
+      return;
+    }
+    
     try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/students`, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json' 
           },
         body: JSON.stringify({
-          fullName: newStudent.name,
-          email: newStudent.email,
-          classNumber: newStudent.classNumber,
-          phone: newStudent.phone,
-          role: 'student',
+          fullName: newStudent.name.trim(),
+          email: newStudent.email.trim(),
+          classNumber: newStudent.classNumber.trim(),
+          phone: newStudent.phone.trim(),
           password: 'Password123' // Default password for all students
         })
       });
 
-      if (response.ok) {
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        const text = await response.text();
+        console.error('Failed to parse JSON response:', text);
+        alert(`Failed to add student: Server returned invalid response. Status: ${response.status}`);
+        return;
+      }
+      
+      if (response.ok && (responseData.success === true || responseData.success === undefined)) {
         // Reset form and close dialog
         setNewStudent({ name: '', email: '', classNumber: '', phone: '' });
         setIsAddDialogOpen(false);
@@ -155,12 +196,14 @@ const UserManagement = () => {
         fetchStudents();
         alert('Student added successfully! Default password: Password123');
       } else {
-        const errorData = await response.json();
-        alert(`Failed to add student: ${errorData.message || 'Unknown error'}`);
+        const errorMsg = responseData.message || responseData.error || 'Unknown error occurred';
+        console.error('Error response:', responseData);
+        alert(`Failed to add student: ${errorMsg}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add student:', error);
-      alert('Failed to add student. Please try again.');
+      const errorMsg = error.message || 'Network error. Please check your connection and try again.';
+      alert(`Failed to add student: ${errorMsg}`);
     }
   };
 
@@ -617,7 +660,9 @@ const UserManagement = () => {
                   <form onSubmit={handleAddStudent} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name" className="text-sm font-medium text-sky-800">Full Name</Label>
+                        <Label htmlFor="name" className="text-sm font-medium text-sky-800">
+                          Full Name <span className="text-red-500">*</span>
+                        </Label>
                   <Input
                     id="name"
                     value={newStudent.name}
@@ -627,7 +672,9 @@ const UserManagement = () => {
                   />
                 </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm font-medium text-sky-800">Email</Label>
+                        <Label htmlFor="email" className="text-sm font-medium text-sky-800">
+                          Email <span className="text-red-500">*</span>
+                        </Label>
                   <Input
                     id="email"
                     type="email"
@@ -640,13 +687,16 @@ const UserManagement = () => {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="classNumber" className="text-sm font-medium text-sky-800">Class Number</Label>
+                        <Label htmlFor="classNumber" className="text-sm font-medium text-sky-800">
+                          Class Number <span className="text-red-500">*</span>
+                        </Label>
                   <Input
                     id="classNumber"
                     value={newStudent.classNumber}
                     onChange={(e) => setNewStudent({ ...newStudent, classNumber: e.target.value })}
                           className="rounded-xl bg-white/70 border-sky-200 text-sky-900 backdrop-blur-sm"
                     required
+                    placeholder="e.g., 10, 11, 12"
                   />
                 </div>
                       <div className="space-y-2">
@@ -863,36 +913,25 @@ const UserManagement = () => {
                     </div>
                     
                     <div className="flex items-center justify-between pt-4 border-t border-sky-200">
-                    <div className="flex items-center space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-sky-600 hover:text-blue-700 hover:bg-blue-100/50 rounded-lg backdrop-blur-sm"
-                        >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-sky-600 hover:text-blue-700 hover:bg-blue-100/50 rounded-lg backdrop-blur-sm"
-                        >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-sky-600 hover:text-red-700 hover:bg-red-100/50 rounded-lg backdrop-blur-sm"
-                          onClick={() => handleDeleteStudent(student.id, student.name || 'Unknown Student')}
-                        >
-                        <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-sky-600 hover:text-sky-800"
+                        className="text-sky-600 hover:text-red-700 hover:bg-red-100/50 rounded-lg backdrop-blur-sm"
+                        onClick={() => handleDeleteStudent(student.id, student.name || 'Unknown Student')}
                       >
-                        <MoreHorizontal className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-sky-600 hover:text-sky-800 border-sky-200 hover:bg-sky-50 rounded-lg backdrop-blur-sm"
+                        onClick={() => {
+                          setSelectedStudentForClass(student);
+                          setIsAssignClassDialogOpen(true);
+                        }}
+                      >
+                        <GraduationCap className="w-4 h-4 mr-2" />
+                        Assign Class
                       </Button>
                     </div>
                   </motion.div>
@@ -917,6 +956,95 @@ const UserManagement = () => {
           )}
         </motion.div>
       </div>
+
+      {/* Assign Class Dialog */}
+      <Dialog open={isAssignClassDialogOpen} onOpenChange={setIsAssignClassDialogOpen}>
+        <DialogContent className="max-w-md bg-white/80 border-sky-200 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-sky-900">Assign Class to Student</DialogTitle>
+            <DialogDescription className="text-sky-700">
+              {selectedStudentForClass && `Assign a class to ${selectedStudentForClass.name}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {availableClasses.length === 0 ? (
+              <div className="text-center py-8">
+                <GraduationCap className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No classes available. Please create a class first.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {availableClasses.map((classItem) => (
+                  <div
+                    key={classItem.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                      selectedStudentForClass?.assignedClass === classItem.id
+                        ? 'bg-sky-100 border-sky-400 border-2'
+                        : 'bg-white border-sky-200 hover:border-sky-300 hover:bg-sky-50'
+                    }`}
+                    onClick={async () => {
+                      if (selectedStudentForClass) {
+                        try {
+                          const token = localStorage.getItem('authToken');
+                          const response = await fetch(`${API_BASE_URL}/api/admin/students/${selectedStudentForClass.id}/assign-class`, {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${token}`,
+                              'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ classId: classItem.id })
+                          });
+
+                          const responseData = await response.json();
+
+                          if (response.ok && responseData.success !== false) {
+                            setIsAssignClassDialogOpen(false);
+                            setSelectedStudentForClass(null);
+                            fetchStudents();
+                            alert('Class assigned successfully!');
+                          } else {
+                            alert(`Failed to assign class: ${responseData.message || 'Unknown error'}`);
+                          }
+                        } catch (error) {
+                          console.error('Failed to assign class:', error);
+                          alert('Failed to assign class. Please try again.');
+                        }
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-sky-900">{classItem.name}</p>
+                        {classItem.description && (
+                          <p className="text-sm text-sky-600">{classItem.description}</p>
+                        )}
+                        <p className="text-xs text-sky-500 mt-1">
+                          {classItem.studentCount || 0} students
+                        </p>
+                      </div>
+                      {selectedStudentForClass?.assignedClass === classItem.id && (
+                        <CheckCircle className="w-5 h-5 text-sky-600" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end pt-4 border-t border-sky-200">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAssignClassDialogOpen(false);
+                  setSelectedStudentForClass(null);
+                }}
+                className="border-sky-200 text-sky-700 hover:bg-sky-50"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

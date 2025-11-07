@@ -94,37 +94,16 @@ const AdminDashboard = () => {
     checkAuth();
   }, []);
   const [stats, setStats] = useState({
-    totalStudents: 150,
+    totalStudents: 0,
     totalTeachers: 0,
-    totalClasses: 8,
+    totalClasses: 0,
     totalVideos: 0,
-    totalQuizzes: 25,
+    totalQuizzes: 0,
     totalAssessments: 0,
-    activeUsers: 45,
-    recentActivity: [
-      {
-        id: 1,
-        type: 'user',
-        action: 'New student registered',
-        user: 'John Doe',
-        time: '2 hours ago'
-      },
-      {
-        id: 2,
-        type: 'path',
-        action: 'Learning path completed',
-        user: 'Jane Smith',
-        time: '4 hours ago'
-      },
-      {
-        id: 3,
-        type: 'user',
-        action: 'Class assignment updated',
-        user: 'Admin',
-        time: '6 hours ago'
-      }
-    ]
+    activeUsers: 0,
+    totalContent: 0
   });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   useEffect(() => {
     // Fetch admin dashboard data
@@ -133,87 +112,43 @@ const AdminDashboard = () => {
 
   const fetchAdminStats = async () => {
     try {
+      setIsLoadingStats(true);
       const token = localStorage.getItem('authToken');
       if (!token) {
         console.log('No auth token found for admin stats');
+        setIsLoadingStats(false);
         return;
       }
 
-      // Get admin info first
-      const adminRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      // Fetch admin dashboard stats from the dedicated endpoint
+      const statsRes = await fetch(`${API_BASE_URL}/api/admin/dashboard/stats`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      if (!adminRes.ok) {
-        console.log('Failed to get admin info');
+      if (!statsRes.ok) {
+        console.log('Failed to get admin stats');
+        setIsLoadingStats(false);
         return;
       }
       
-      const adminData = await adminRes.json();
-      const adminId = adminData.user.id;
-      console.log('Admin ID for data fetching:', adminId);
-
-      // Fetch admin-specific data using admin endpoints
-      const [studentsRes, teachersRes, videosRes, assessmentsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/admin/users`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE_URL}/api/admin/teachers`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE_URL}/api/videos`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE_URL}/api/assessments`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ]);
-
-      const students = studentsRes.ok ? await studentsRes.json() : [];
-      const teachers = teachersRes.ok ? await teachersRes.json() : [];
-      const videos = videosRes.ok ? await videosRes.json() : [];
-      const assessments = assessmentsRes.ok ? await assessmentsRes.json() : [];
-
-      console.log('Admin-specific data:', {
-        students: students.length || 0,
-        teachers: teachers.length || 0,
-        videos: videos.length || 0,
-        assessments: assessments.length || 0
-      });
-
-      setStats({
-        totalStudents: students.length || 0,
-        totalTeachers: teachers.length || 0,
-        totalClasses: 8,
-        totalVideos: videos.length || 0,
-        totalQuizzes: 25,
-        totalAssessments: assessments.length || 0,
-        activeUsers: Math.floor((students.length || 0) * 0.8),
-        recentActivity: [
-          { id: 1, action: 'New video uploaded', user: 'John Doe', time: '2 hours ago', type: 'video' },
-          { id: 2, action: 'Learning path created', user: 'Jane Smith', time: '4 hours ago', type: 'path' },
-          { id: 3, action: 'Assessment published', user: 'Mike Johnson', time: '6 hours ago', type: 'assessment' },
-          { id: 4, action: 'User registered', user: 'Sarah Wilson', time: '8 hours ago', type: 'user' }
-        ]
-      });
+      const statsData = await statsRes.json();
+      
+      if (statsData.success && statsData.data) {
+        setStats({
+          totalStudents: statsData.data.totalStudents || 0,
+          totalTeachers: statsData.data.totalTeachers || 0,
+          totalClasses: statsData.data.totalClasses || 0,
+          totalVideos: statsData.data.totalVideos || 0,
+          totalQuizzes: statsData.data.totalQuizzes || 0,
+          totalAssessments: statsData.data.totalAssessments || 0,
+          activeUsers: statsData.data.activeUsers || 0,
+          totalContent: statsData.data.totalContent || 0
+        });
+      }
     } catch (error) {
       console.error('Failed to fetch admin stats:', error);
-      // Set mock data for development
-      setStats({
-        totalStudents: 150,
-        totalTeachers: 25,
-        totalClasses: 8,
-        totalVideos: 45,
-        totalQuizzes: 25,
-        totalAssessments: 12,
-        activeUsers: 120,
-        recentActivity: [
-          { id: 1, action: 'New video uploaded', user: 'John Doe', time: '2 hours ago', type: 'video' },
-          { id: 2, action: 'Learning path created', user: 'Jane Smith', time: '4 hours ago', type: 'path' },
-          { id: 3, action: 'Assessment published', user: 'Mike Johnson', time: '6 hours ago', type: 'assessment' },
-          { id: 4, action: 'User registered', user: 'Sarah Wilson', time: '8 hours ago', type: 'user' }
-        ]
-      });
+    } finally {
+      setIsLoadingStats(false);
     }
   };
 
@@ -547,12 +482,10 @@ const AdminDashboard = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-white/90 text-responsive-xs font-medium">Total Students</p>
-                      <p className="text-responsive-xl font-bold text-white">{stats.totalStudents}</p>
+                      <p className="text-responsive-xl font-bold text-white">
+                        {isLoadingStats ? '...' : stats.totalStudents}
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-center text-white/80 text-responsive-xs">
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    <span>+12% this month</span>
                   </div>
                 </div>
               </motion.div>
@@ -571,12 +504,10 @@ const AdminDashboard = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-white/90 text-responsive-xs font-medium">Active Classes</p>
-                      <p className="text-responsive-xl font-bold text-white">{stats.totalClasses}</p>
+                      <p className="text-responsive-xl font-bold text-white">
+                        {isLoadingStats ? '...' : stats.totalClasses}
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-center text-white/80 text-responsive-xs">
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    <span>+8% this month</span>
                   </div>
                 </div>
               </motion.div>
@@ -595,12 +526,10 @@ const AdminDashboard = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-white/90 text-responsive-xs font-medium">Active Users</p>
-                      <p className="text-responsive-xl font-bold text-white">{stats.activeUsers}</p>
+                      <p className="text-responsive-xl font-bold text-white">
+                        {isLoadingStats ? '...' : stats.activeUsers}
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-center text-white/80 text-responsive-xs">
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    <span>+18% this month</span>
                   </div>
                 </div>
               </motion.div>
@@ -619,12 +548,10 @@ const AdminDashboard = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-white/90 text-responsive-xs font-medium">Teachers</p>
-                      <p className="text-responsive-xl font-bold text-white">{stats.totalTeachers || 0}</p>
+                      <p className="text-responsive-xl font-bold text-white">
+                        {isLoadingStats ? '...' : (stats.totalTeachers || 0)}
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-center text-white/80 text-responsive-xs">
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    <span>+5% this month</span>
                   </div>
                 </div>
               </motion.div>
@@ -643,12 +570,10 @@ const AdminDashboard = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-white/90 text-responsive-xs font-medium">Videos</p>
-                      <p className="text-responsive-xl font-bold text-white">{stats.totalVideos || 0}</p>
+                      <p className="text-responsive-xl font-bold text-white">
+                        {isLoadingStats ? '...' : (stats.totalVideos || 0)}
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-center text-white/80 text-responsive-xs">
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    <span>+15% this month</span>
                   </div>
                 </div>
               </motion.div>
@@ -667,12 +592,32 @@ const AdminDashboard = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-white/90 text-responsive-xs font-medium">Assessments</p>
-                      <p className="text-responsive-xl font-bold text-white">{stats.totalAssessments || 0}</p>
+                      <p className="text-responsive-xl font-bold text-white">
+                        {isLoadingStats ? '...' : (stats.totalAssessments || 0)}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center text-white/80 text-responsive-xs">
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    <span>+22% this month</span>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="group relative overflow-hidden bg-gradient-to-br from-indigo-500 to-blue-500 rounded-responsive p-responsive shadow-responsive hover:shadow-xl transition-all duration-300"
+              >
+                <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                      <FileText className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="text-right">
+                      <p className="text-white/90 text-responsive-xs font-medium">Quizzes</p>
+                      <p className="text-responsive-xl font-bold text-white">
+                        {isLoadingStats ? '...' : (stats.totalQuizzes || 0)}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -697,7 +642,9 @@ const AdminDashboard = () => {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-white/90 text-responsive-sm font-medium">Total Students Assigned</span>
-                      <span className="text-responsive-xl font-bold text-white">{stats.totalStudents}</span>
+                      <span className="text-responsive-xl font-bold text-white">
+                        {isLoadingStats ? '...' : stats.totalStudents}
+                      </span>
                     </div>
                     <div className="text-white/80 text-responsive-xs">
                       These are the students specifically assigned to your admin account
@@ -723,7 +670,9 @@ const AdminDashboard = () => {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-white/90 text-lg font-medium">Total Teachers Assigned</span>
-                      <span className="text-responsive-xl font-bold text-white">{stats.totalTeachers || 0}</span>
+                      <span className="text-responsive-xl font-bold text-white">
+                        {isLoadingStats ? '...' : (stats.totalTeachers || 0)}
+                      </span>
                     </div>
                     <div className="text-white/80 text-responsive-xs">
                       These are the teachers specifically assigned to your admin account

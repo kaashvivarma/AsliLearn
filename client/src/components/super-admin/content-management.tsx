@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { Upload, Video, FileText, File, X, Trash2, Edit, Play, Download, Eye } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api-config';
 import { useToast } from '@/hooks/use-toast';
-import { checkConnectionStatus } from '@/utils/test-connection';
 
 interface Content {
   _id: string;
@@ -63,13 +62,8 @@ export default function ContentManagement() {
   const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Check connection status on mount
-    checkConnectionStatus();
-    console.log('🔌 API Base URL:', API_BASE_URL);
-    
     fetchSubjects();
     fetchContents();
   }, [selectedBoard]);
@@ -133,60 +127,27 @@ export default function ContentManagement() {
     setIsUploadingFile(true);
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) {
-        toast({
-          title: 'Authentication Error',
-          description: 'Please log in again',
-          variant: 'destructive'
-        });
-        return null;
-      }
-
       const uploadFormData = new FormData();
       uploadFormData.append('file', file);
 
-      const uploadUrl = `${API_BASE_URL}/api/super-admin/content/upload-file?contentType=${formData.type}`;
-      console.log('📤 Uploading file:', file.name, 'Type:', formData.type, 'Size:', file.size);
-      console.log('📡 Upload URL:', uploadUrl);
-
-      const response = await fetch(uploadUrl, {
+      const response = await fetch(`${API_BASE_URL}/api/super-admin/content/upload-file?contentType=${formData.type}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
-          // Don't set Content-Type header - let browser set it with boundary for FormData
         },
         body: uploadFormData
       });
 
-      console.log('📥 Upload response status:', response.status, response.statusText);
-      console.log('📥 Upload response headers:', Object.fromEntries(response.headers.entries()));
-
-      // Check if response is JSON before parsing
-      const contentType = response.headers.get('content-type');
-      let responseData;
-      
-      if (contentType && contentType.includes('application/json')) {
-        responseData = await response.json();
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          return data.fileUrl;
+        }
       } else {
-        // If not JSON, it might be an HTML error page
-        const text = await response.text();
-        console.error('❌ Non-JSON response received:', text.substring(0, 200));
-        toast({
-          title: 'Server Error',
-          description: `Server returned non-JSON response (Status: ${response.status}). Check server logs.`,
-          variant: 'destructive'
-        });
-        return null;
-      }
-
-      if (response.ok && responseData.success) {
-        console.log('✅ File uploaded successfully:', responseData.fileUrl);
-        return responseData.fileUrl;
-      } else {
-        console.error('❌ File upload failed:', responseData);
+        const error = await response.json();
         toast({
           title: 'Upload Error',
-          description: responseData.message || 'Failed to upload file',
+          description: error.message || 'Failed to upload file',
           variant: 'destructive'
         });
         return null;
@@ -195,52 +156,41 @@ export default function ContentManagement() {
       console.error('File upload error:', error);
       toast({
         title: 'Upload Error',
-        description: error instanceof Error ? error.message : 'Failed to upload file',
+        description: 'Failed to upload file',
         variant: 'destructive'
       });
       return null;
     } finally {
       setIsUploadingFile(false);
     }
+    return null;
   };
 
   const handleThumbnailUpload = async (file: File): Promise<string | null> => {
     setIsUploadingThumbnail(true);
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) {
-        toast({
-          title: 'Authentication Error',
-          description: 'Please log in again',
-          variant: 'destructive'
-        });
-        return null;
-      }
-
       const uploadFormData = new FormData();
       uploadFormData.append('thumbnail', file);
-
-      console.log('📤 Uploading thumbnail:', file.name, 'Size:', file.size);
 
       const response = await fetch(`${API_BASE_URL}/api/super-admin/content/upload-thumbnail`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
-          // Don't set Content-Type header - let browser set it with boundary for FormData
         },
         body: uploadFormData
       });
 
-      const responseData = await response.json();
-
-      if (response.ok && responseData.success) {
-        console.log('✅ Thumbnail uploaded successfully:', responseData.thumbnailUrl);
-        return responseData.thumbnailUrl;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          return data.thumbnailUrl;
+        }
       } else {
-        console.error('❌ Thumbnail upload failed:', responseData);
+        const error = await response.json();
         toast({
           title: 'Upload Error',
-          description: responseData.message || 'Failed to upload thumbnail',
+          description: error.message || 'Failed to upload thumbnail',
           variant: 'destructive'
         });
         return null;
@@ -249,35 +199,42 @@ export default function ContentManagement() {
       console.error('Thumbnail upload error:', error);
       toast({
         title: 'Upload Error',
-        description: error instanceof Error ? error.message : 'Failed to upload thumbnail',
+        description: 'Failed to upload thumbnail',
         variant: 'destructive'
       });
       return null;
     } finally {
       setIsUploadingThumbnail(false);
     }
+    return null;
   };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent double submission
-    if (isSubmitting || isUploadingFile || isUploadingThumbnail) {
-      return;
-    }
-
-    // Validate required fields
-    if (!formData.title || !formData.subject || !formData.date) {
+    // Validate all required fields
+    if (!formData.title || !formData.subject || !formData.date || !formData.type || !selectedBoard) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all required fields: title, subject, and date',
+        description: 'Please fill in all required fields: title, subject, date, type, and board',
         variant: 'destructive'
       });
       return;
     }
 
-    // Validate file or fileUrl
-    if (!selectedFile && !formData.fileUrl) {
+    let fileUrl = formData.fileUrl;
+    let thumbnailUrl = formData.thumbnailUrl;
+    let fileSize = 0;
+
+    // If a file is selected, upload it first
+    if (selectedFile) {
+      const uploadedUrl = await handleFileUpload(selectedFile);
+      if (!uploadedUrl) {
+        return; // Error already shown in handleFileUpload
+      }
+      fileUrl = uploadedUrl;
+      fileSize = selectedFile.size;
+    } else if (!formData.fileUrl) {
       toast({
         title: 'Validation Error',
         description: 'Please either upload a file or provide a file URL',
@@ -286,61 +243,41 @@ export default function ContentManagement() {
       return;
     }
 
-    setIsSubmitting(true);
+    // If a thumbnail file is selected, upload it
+    if (selectedThumbnail) {
+      const uploadedThumbnailUrl = await handleThumbnailUpload(selectedThumbnail);
+      if (uploadedThumbnailUrl) {
+        thumbnailUrl = uploadedThumbnailUrl;
+      }
+      // Continue even if thumbnail upload fails (it's optional)
+    }
 
     try {
-      let fileUrl = formData.fileUrl;
-      let thumbnailUrl = formData.thumbnailUrl;
-      let fileSize = 0;
-
-      // If a file is selected, upload it first
-      if (selectedFile) {
-        console.log('📤 Uploading file:', selectedFile.name, selectedFile.size);
-        const uploadedUrl = await handleFileUpload(selectedFile);
-        if (!uploadedUrl) {
-          setIsSubmitting(false);
-          return; // Error already shown in handleFileUpload
-        }
-        fileUrl = uploadedUrl;
-        fileSize = selectedFile.size;
-      }
-
-      // If a thumbnail file is selected, upload it
-      if (selectedThumbnail) {
-        console.log('📤 Uploading thumbnail:', selectedThumbnail.name);
-        const uploadedThumbnailUrl = await handleThumbnailUpload(selectedThumbnail);
-        if (uploadedThumbnailUrl) {
-          thumbnailUrl = uploadedThumbnailUrl;
-        }
-        // Continue even if thumbnail upload fails (it's optional)
-      }
-
       const token = localStorage.getItem('authToken');
-      if (!token) {
-        toast({
-          title: 'Authentication Error',
-          description: 'Please log in again',
-          variant: 'destructive'
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
+      
+      // Prepare the request body with all required data
       const requestBody = {
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
         type: formData.type,
         board: selectedBoard,
-        subject: formData.subject,
+        subject: formData.subject, // This should be the subject ID
         topic: formData.topic?.trim() || undefined,
-        date: formData.date,
+        date: formData.date, // Date in YYYY-MM-DD format
         fileUrl: fileUrl,
         thumbnailUrl: thumbnailUrl || undefined,
         duration: formData.duration ? Number(formData.duration) : 0,
         size: fileSize
       };
 
-      console.log('📦 Submitting content:', requestBody);
+      console.log('📤 Uploading content with data:', {
+        title: requestBody.title,
+        type: requestBody.type,
+        board: requestBody.board,
+        subject: requestBody.subject,
+        date: requestBody.date,
+        hasFileUrl: !!requestBody.fileUrl
+      });
 
       const response = await fetch(`${API_BASE_URL}/api/super-admin/content`, {
         method: 'POST',
@@ -351,9 +288,9 @@ export default function ContentManagement() {
         body: JSON.stringify(requestBody)
       });
 
-      const responseData = await response.json();
+      const data = await response.json();
 
-      if (response.ok && responseData.success) {
+      if (response.ok && data.success) {
         toast({
           title: 'Success',
           description: 'Content uploaded successfully',
@@ -375,10 +312,9 @@ export default function ContentManagement() {
         setSelectedThumbnail(null);
         fetchContents();
       } else {
-        console.error('Upload failed:', responseData);
         toast({
           title: 'Error',
-          description: responseData.message || 'Failed to upload content',
+          description: data.message || 'Failed to upload content',
           variant: 'destructive'
         });
       }
@@ -386,11 +322,9 @@ export default function ContentManagement() {
       console.error('Upload error:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to upload content',
+        description: 'Failed to upload content. Please try again.',
         variant: 'destructive'
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -874,23 +808,16 @@ export default function ContentManagement() {
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsUploadModalOpen(false)}
-                disabled={isSubmitting || isUploadingFile || isUploadingThumbnail}
-              >
+              <Button type="button" variant="outline" onClick={() => setIsUploadModalOpen(false)}>
                 Cancel
               </Button>
               <Button 
                 type="submit" 
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                disabled={isSubmitting || isUploadingFile || isUploadingThumbnail}
+                disabled={isUploadingFile || isUploadingThumbnail}
               >
                 <Upload className="w-4 h-4 mr-2" />
-                {isSubmitting || isUploadingFile || isUploadingThumbnail 
-                  ? 'Uploading...' 
-                  : 'Upload Content'}
+                {isUploadingFile || isUploadingThumbnail ? 'Uploading...' : 'Upload Content'}
               </Button>
             </div>
           </form>

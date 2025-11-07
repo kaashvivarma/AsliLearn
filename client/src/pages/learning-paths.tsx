@@ -454,8 +454,8 @@ export default function LearningPaths() {
   const recommendedPaths = [
     {
       id: "4",
-      title: "Quick Revision for JEE Main",
-      description: "Last minute revision course for JEE Main",
+      title: "IQ/Rank Boost Practice",
+      description: "Boost your IQ and improve your rank with targeted practice",
       duration: "2 months",
       students: 3200,
       rating: 4.6,
@@ -466,8 +466,8 @@ export default function LearningPaths() {
     },
     {
       id: "5",
-      title: "Advanced Problem Solving",
-      description: "Advanced problem solving techniques for competitive exams",
+      title: "Previous Year Question Papers and Solutions",
+      description: "Practice with previous year question papers and detailed solutions",
       duration: "6 months",
       students: 1500,
       rating: 4.9,
@@ -511,17 +511,6 @@ export default function LearningPaths() {
               <p className="text-blue-100 mb-6">
                 Choose your learning journey and master your subjects with our structured courses
               </p>
-              
-              <div className="flex flex-wrap gap-4">
-                <Button className="bg-white text-primary hover:bg-blue-50">
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Learning
-                </Button>
-                <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  Browse All Courses
-                </Button>
-              </div>
             </div>
             
             {/* Decorative elements */}
@@ -731,7 +720,7 @@ export default function LearningPaths() {
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-6 h-6 text-blue-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Create Custom Path</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Learning Management</h3>
               <p className="text-gray-600 text-sm mb-4">Build your own learning journey</p>
               <Button variant="outline" className="w-full">
                 Get Started
@@ -744,7 +733,7 @@ export default function LearningPaths() {
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Track Progress</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Vidya AI</h3>
               <p className="text-gray-600 text-sm mb-4">Monitor your learning journey</p>
               <Button variant="outline" className="w-full">
                 View Progress
@@ -757,7 +746,7 @@ export default function LearningPaths() {
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <Star className="w-6 h-6 text-purple-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Get Certified</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Exams</h3>
               <p className="text-gray-600 text-sm mb-4">Earn certificates for your achievements</p>
               <Button variant="outline" className="w-full">
                 View Certificates

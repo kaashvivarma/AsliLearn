@@ -31,7 +31,9 @@ import {
   Wrench,
   LogOut,
   Menu,
-  Search
+  Search,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface TeacherStats {
@@ -47,6 +49,23 @@ interface Student {
   name: string;
   email: string;
   classNumber: string;
+  phone?: string;
+  isActive?: boolean;
+  createdAt?: string;
+  lastLogin?: string;
+  assignedClass?: {
+    name?: string;
+    classNumber?: string;
+    section?: string;
+  };
+  performance?: {
+    recentExamTitle?: string;
+    recentMarks?: number;
+    recentPercentage?: number;
+    totalExams?: number;
+    averageMarks?: number;
+    overallProgress?: number;
+  };
 }
 
 interface Video {
@@ -90,6 +109,7 @@ const TeacherDashboard = () => {
   const [teacherSubjects, setTeacherSubjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [teacherEmail, setTeacherEmail] = useState<string>(localStorage.getItem('userEmail') || '');
+  const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
 
@@ -210,7 +230,7 @@ const TeacherDashboard = () => {
       console.log('Response status:', response.status);
       console.log('Response ok:', response.ok);
 
-      // If Railway API failed, try test endpoint
+      // If API failed, try test endpoint
       if (!response.ok) {
         try {
           response = await fetch(`${API_BASE_URL}/api/test-video-simple`, {
@@ -312,12 +332,18 @@ const TeacherDashboard = () => {
             name: student.fullName || student.name,
             email: student.email,
             classNumber: student.classNumber,
+            phone: student.phone,
+            isActive: student.isActive,
+            createdAt: student.createdAt,
+            lastLogin: student.lastLogin,
+            assignedClass: student.assignedClass,
             performance: student.performance || {
               recentExamTitle: null,
               recentMarks: null,
               recentPercentage: null,
               totalExams: 0,
-              averageMarks: 0
+              averageMarks: 0,
+              overallProgress: 0
             }
           })));
         }
@@ -741,11 +767,11 @@ const TeacherDashboard = () => {
                           </div>
                         </div>
                         
-                        {/* Students List */}
-                        {classItem.students && classItem.students.length > 0 && (
+                        {/* Students List - Conditionally Rendered */}
+                        {expandedClasses.has(classItem.id || index.toString()) && classItem.students && classItem.students.length > 0 && (
                           <div className="mt-4 space-y-2">
                             <h4 className="font-semibold text-gray-900 text-sm">Students:</h4>
-                            <div className="space-y-1 max-h-32 overflow-y-auto">
+                            <div className="space-y-1 max-h-64 overflow-y-auto">
                               {classItem.students.map(student => (
                                 <div key={student.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
                                   <div>
@@ -760,9 +786,35 @@ const TeacherDashboard = () => {
                             </div>
                           </div>
                         )}
-                        <div className="mt-4 flex space-x-2">
-                          <Button size="sm" className="flex-1">View Students</Button>
-                          <Button size="sm" variant="outline">Manage</Button>
+                        <div className="mt-4">
+                          <Button 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => {
+                              const classId = classItem.id || index.toString();
+                              setExpandedClasses(prev => {
+                                const newSet = new Set(prev);
+                                if (newSet.has(classId)) {
+                                  newSet.delete(classId);
+                                } else {
+                                  newSet.add(classId);
+                                }
+                                return newSet;
+                              });
+                            }}
+                          >
+                            {expandedClasses.has(classItem.id || index.toString()) ? (
+                              <>
+                                <ChevronUp className="w-4 h-4 mr-2" />
+                                Hide Students
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-4 h-4 mr-2" />
+                                View Students
+                              </>
+                            )}
+                          </Button>
                         </div>
                       </div>
                     ))
@@ -791,7 +843,7 @@ const TeacherDashboard = () => {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
                       <Input
-                        placeholder="Search students by name or email..."
+                        placeholder="Search students by name, email, or phone..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10 w-full rounded-xl bg-white/70 border-gray-200 text-gray-900 backdrop-blur-sm"
@@ -805,49 +857,84 @@ const TeacherDashboard = () => {
                         <thead>
                           <tr className="border-b border-gray-200">
                             <th className="text-left py-3 px-4 font-medium text-gray-900">Student</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">Contact</th>
                             <th className="text-left py-3 px-4 font-medium text-gray-900">Class</th>
-                            <th className="text-left py-3 px-4 font-medium text-gray-900">Recent Performance</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">Overall Progress</th>
                             <th className="text-left py-3 px-4 font-medium text-gray-900">Average</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">Last Login</th>
                           </tr>
                         </thead>
                         <tbody>
                           {students
                             .filter(student => 
                               student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              student.email.toLowerCase().includes(searchTerm.toLowerCase())
+                              student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              student.phone?.toLowerCase().includes(searchTerm.toLowerCase())
                             )
                             .map((student) => {
-                              const perf = (student as any).performance || {};
+                              const perf = student.performance || {};
+                              const classDisplay = student.assignedClass 
+                                ? `${student.assignedClass.classNumber || student.classNumber}${student.assignedClass.section || ''}`
+                                : student.classNumber;
+                              
                               return (
-                                <tr key={student.id} className="border-b border-gray-100">
+                                <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                   <td className="py-3 px-4">
                                     <div>
-                                      <p className="font-medium text-gray-900">{student.name}</p>
+                                      <p className="font-medium text-gray-900">{student.name || student.fullName}</p>
                                       <p className="text-sm text-gray-600">{student.email}</p>
                                     </div>
                                   </td>
                                   <td className="py-3 px-4">
-                                    <Badge className="bg-blue-100 text-blue-800">{student.classNumber}</Badge>
+                                    <div>
+                                      {student.phone ? (
+                                        <p className="text-sm text-gray-900">{student.phone}</p>
+                                      ) : (
+                                        <p className="text-sm text-gray-400">No phone</p>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="py-3 px-4">
-                                    {perf.recentMarks !== null && perf.recentMarks !== undefined ? (
+                                    <Badge className="bg-blue-100 text-blue-800">{classDisplay}</Badge>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <Badge className={student.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                                      {student.isActive !== false ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    {perf.overallProgress !== null && perf.overallProgress !== undefined && perf.overallProgress > 0 ? (
                                       <div>
-                                        <div className="flex items-center space-x-2">
-                                          <span className="text-sm font-medium text-gray-900">
-                                            {perf.recentMarks}/{perf.recentExamTitle ? '100' : 'N/A'}
-                                          </span>
-                                          <Badge className={perf.recentPercentage >= 70 ? 'bg-green-100 text-green-800' : 
-                                                           perf.recentPercentage >= 50 ? 'bg-yellow-100 text-yellow-800' : 
+                                        <div className="flex items-center space-x-2 mb-2">
+                                          <span className="text-sm font-medium text-gray-900">Overall Progress:</span>
+                                          <Badge className={perf.overallProgress >= 70 ? 'bg-green-100 text-green-800' : 
+                                                           perf.overallProgress >= 50 ? 'bg-yellow-100 text-yellow-800' : 
                                                            'bg-red-100 text-red-800'}>
-                                            {perf.recentPercentage?.toFixed(1)}%
+                                            {perf.overallProgress.toFixed(1)}%
                                           </Badge>
                                         </div>
-                                        {perf.recentExamTitle && (
-                                          <p className="text-xs text-gray-500 mt-1">{perf.recentExamTitle}</p>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                          <div 
+                                            className={`h-2 rounded-full ${
+                                              perf.overallProgress >= 70 ? 'bg-green-500' : 
+                                              perf.overallProgress >= 50 ? 'bg-yellow-500' : 
+                                              'bg-red-500'
+                                            }`}
+                                            style={{ width: `${perf.overallProgress}%` }}
+                                          />
+                                        </div>
+                                        {perf.totalExams > 0 && (
+                                          <p className="text-xs text-gray-500 mt-1">{perf.totalExams} exam{perf.totalExams !== 1 ? 's' : ''} completed</p>
                                         )}
                                       </div>
                                     ) : (
-                                      <span className="text-sm text-gray-400">No exams taken</span>
+                                      <div>
+                                        <span className="text-sm text-gray-400">No progress data</span>
+                                        {perf.totalExams === 0 && (
+                                          <p className="text-xs text-gray-400 mt-1">No exams taken</p>
+                                        )}
+                                      </div>
                                     )}
                                   </td>
                                   <td className="py-3 px-4">
@@ -860,6 +947,20 @@ const TeacherDashboard = () => {
                                       </div>
                                     ) : (
                                       <span className="text-sm text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    {student.lastLogin ? (
+                                      <div>
+                                        <p className="text-sm text-gray-900">
+                                          {new Date(student.lastLogin).toLocaleDateString()}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          {new Date(student.lastLogin).toLocaleTimeString()}
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-gray-400">Never</span>
                                     )}
                                   </td>
                                 </tr>
